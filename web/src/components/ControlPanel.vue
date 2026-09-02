@@ -4,6 +4,13 @@ import StrategyForm from './StrategyForm.vue';
 import CredentialsForm from './CredentialsForm.vue';
 import LlmForm from './LlmForm.vue';
 import LimitsForm from './LimitsForm.vue';
+
+const CONFIG_TABS = [
+  { key: 'strategy', label: '策略' },
+  { key: 'credentials', label: '凭据' },
+  { key: 'llm', label: 'LLM' },
+  { key: 'limits', label: '参数' },
+];
 </script>
 
 <template>
@@ -20,9 +27,19 @@ import LimitsForm from './LimitsForm.vue';
       <input v-model="store.forms.manualSlug" placeholder="如 two-sum" />
     </div>
 
-    <StrategyForm />
-    <CredentialsForm />
-    <LlmForm />
-    <LimitsForm />
+    <div class="tabs config-tabs">
+      <button
+        v-for="t in CONFIG_TABS"
+        :key="t.key"
+        class="tab"
+        :class="{ active: store.configTab === t.key }"
+        @click="actions.setConfigTab(t.key)"
+      >{{ t.label }}</button>
+    </div>
+
+    <div v-show="store.configTab === 'strategy'"><StrategyForm /></div>
+    <div v-show="store.configTab === 'credentials'"><CredentialsForm /></div>
+    <div v-show="store.configTab === 'llm'"><LlmForm /></div>
+    <div v-show="store.configTab === 'limits'"><LimitsForm /></div>
   </section>
 </template>

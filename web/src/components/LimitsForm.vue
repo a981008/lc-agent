@@ -11,7 +11,7 @@ const langOptions = [
 </script>
 
 <template>
-  <h3>运行参数</h3>
+  
   <div class="field checks">
     <label><input type="checkbox" v-model="store.forms.cooldownEnabled" />冷却启用</label>
     <label><input type="checkbox" v-model="store.forms.dryRun" />Dry-Run（模拟判题）</label>

@@ -6,11 +6,17 @@ import { api, getToken, setToken, clearToken } from './api.js';
 export const STAGE_KEYS = ['fetch', 'generate', 'local_test', 'submit', 'translate', 'archive'];
 
 /** leetcode.cn 题目页 */
+/** 左侧配置面板当前标签页 */
+export function setConfigTab(tab) {
+  store.configTab = tab;
+}
+
 export function lcProblemUrl(slug) {
   return `https://leetcode.cn/problems/${slug}/`;
 }
 
 export const store = reactive({
+  configTab: 'strategy',
   authed: false,
   gateError: '',
   gateInput: '',
@@ -334,6 +340,7 @@ export function pageNext() { store.page++; loadProblems(); }
 
 /* 组件统一引用的动作集合 */
 export const actions = {
+  setConfigTab,
   initToken, submitToken, logout, refreshStatus,
   doResume, doPause, doHalt, doTrigger,
   saveStrategy, saveCookie, saveLlm, saveLimits, syncProblems,

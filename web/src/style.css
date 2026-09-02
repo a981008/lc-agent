@@ -164,3 +164,7 @@ td.actions button { padding: 2px 8px; font-size: 12px; }
 .lc-link { color: var(--accent); text-decoration: none; }
 .lc-link:hover { text-decoration: underline; }
 .modal-link { display: inline-block; margin-bottom: 10px; color: var(--accent); }
+
+/* 左侧配置面板标签页 */
+.config-tabs { margin-top: 14px; border-bottom: 1px solid var(--border); }
+.config-tabs .tab { padding: 6px 12px; font-size: 13px; }

@@ -3,7 +3,7 @@ import { store, actions } from '../store.js';
 </script>
 
 <template>
-  <h3>LLM</h3>
+  
   <div class="field">
     <label>协议</label>
     <select v-model="store.forms.llmProtocol">

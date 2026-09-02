@@ -9,7 +9,7 @@ const difficultyOptions = [
 </script>
 
 <template>
-  <h3>策略（下一题生效）</h3>
+  
   <div class="field">
     <label>刷题模式</label>
     <select v-model="store.forms.mode">
