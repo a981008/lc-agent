@@ -27,13 +27,18 @@ export function loadEnv(): void {
   }
 }
 
+/**
+ * env 用 getter 动态读取（而非模块加载时快照）：
+ * ESM import 先于 index.ts 的 loadEnv() 执行，静态快照会让 .env 的
+ * BIND/PORT/SECRET_KEY/DATA_DIR/SANDBOX_IMAGE 全部失效（访问时 .env 已加载）。
+ */
 export const env = {
-  port: Number(process.env.PORT ?? 3081),
-  bind: process.env.BIND ?? '127.0.0.1',
-  dataDir: path.resolve(process.env.DATA_DIR ?? './data'),
-  secretKey: process.env.SECRET_KEY ?? '',
-  adminToken: process.env.ADMIN_TOKEN ?? '',
-  sandboxImage: process.env.SANDBOX_IMAGE ?? 'lc-agent-sandbox:latest',
+  get port(): number { return Number(process.env.PORT ?? 3081); },
+  get bind(): string { return process.env.BIND ?? '127.0.0.1'; },
+  get dataDir(): string { return path.resolve(process.env.DATA_DIR ?? './data'); },
+  get secretKey(): string { return process.env.SECRET_KEY ?? ''; },
+  get adminToken(): string { return process.env.ADMIN_TOKEN ?? ''; },
+  get sandboxImage(): string { return process.env.SANDBOX_IMAGE ?? 'lc-agent-sandbox:latest'; },
 };
 
 export function ensureDirs(): void {

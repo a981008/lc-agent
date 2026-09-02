@@ -282,6 +282,18 @@ async function testCooldownConfig(): Promise<void> {
   check('禁用开关即时归零', ((cfg = { ...cfg, enabled: false }), machine.cooldownRemainingMs() === 0), '0ms');
 }
 
+/** env 动态读取：.env 加载时序无关（回归：BIND 曾因模块快照失效） */
+async function testEnvGetters(): Promise<void> {
+  console.log('\n[7] env 动态读取');
+  const { env } = await import('../src/config.js');
+  process.env.BIND = '0.0.0.0';
+  process.env.PORT = '3999';
+  check('修改 process.env 即时生效', env.bind === '0.0.0.0' && env.port === 3999, `bind=${env.bind} port=${env.port}`);
+  delete process.env.BIND;
+  delete process.env.PORT;
+  check('未设置时回退默认', env.bind === '127.0.0.1' && env.port === 3081, `bind=${env.bind} port=${env.port}`);
+}
+
 /** 原题链接注入：归档正文含 leetcode.cn 链接且渲染为 <a> */
 async function testLcLink(): Promise<void> {
   console.log('\n[6] 原题链接注入');
@@ -303,10 +315,10 @@ async function testLlm(): Promise<void> {
   const apiKey = process.env.SELFTEST_LLM_API_KEY;
   const model = process.env.SELFTEST_LLM_MODEL;
   if (!baseUrl || !apiKey || !model) {
-    console.log('\n[7] LLM 连通性：未设置 SELFTEST_LLM_* 环境变量，跳过');
+    console.log('\n[8] LLM 连通性：未设置 SELFTEST_LLM_* 环境变量，跳过');
     return;
   }
-  console.log('\n[7] LLM 连通性');
+  console.log('\n[8] LLM 连通性');
   const { AiClient } = await import('../src/ai/client.js');
   const { BudgetManager } = await import('../src/budget.js');
   const mem = new Map<string, unknown>();
@@ -348,6 +360,7 @@ async function main(): Promise<void> {
   await testAcTabs();
   await testCooldownConfig();
   await testLcLink();
+  await testEnvGetters();
   await testLlm();
 
   console.log(`\n=== 结果：${pass} 通过 / ${fail} 失败 ===`);

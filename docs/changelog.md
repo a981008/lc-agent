@@ -24,6 +24,7 @@ source: v0.2 §7
 | v0.14 | **分页条常驻**：题目列表翻页条 `sticky` 钉在表格滚动区域底部，表格内滚动时翻页控件始终可见，无需滚到最下 |
 | v0.16 | **部署文档**：新增 [`docs/12-deployment.md`](12-deployment.md)——`.env` 配置（BIND/ADMIN_TOKEN/SECRET_KEY/DRY_RUN）、前置依赖、systemd 常驻、nginx+WS 反代、备份迁移与上线检查清单 |
 | v0.15 | **实时日志固定大小**：日志终端改为固定 260px 高度，不再随日志增多而变大；超出部分内部滚动（自动滚动到底），滚动条样式与列表一致 |
+| v0.17 | **修复 .env 失效**：`env` 快照在 ESM import 阶段冻结，早于 `loadEnv()`，导致 `.env` 的 `BIND/PORT/SECRET_KEY/DATA_DIR/SANDBOX_IMAGE` 全部被忽略（日志恒显 127.0.0.1）；改为 getter 动态读取，访问时才取 process.env，并新增 2 项回归自测 |
 
 ---
 
