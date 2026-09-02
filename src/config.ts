@@ -135,7 +135,7 @@ export function mergeLimits(prev: LimitsConfig, patch?: Partial<LimitsConfig>): 
   cd.minMs = Math.max(0, numOr(cd.minMs, LIMITS_DEFAULTS.cooldown.minMs));
   cd.maxMs = Math.max(0, numOr(cd.maxMs, LIMITS_DEFAULTS.cooldown.maxMs));
   if (cd.minMs > cd.maxMs) [cd.minMs, cd.maxMs] = [cd.maxMs, cd.minMs]; // min>max 自动交换
-  cd.muMs = Math.min(Math.max(cd.muMs, cd.minMs), cd.maxMs);
+  // μ 不随 [min,max] 收缩被永久钳制：采样时 sampleCooldown 会按区间截断结果
   cd.enabled = Boolean(cd.enabled);
   const translateLangs = Array.isArray(p.translateLangs)
     ? p.translateLangs.filter((x): x is string => typeof x === 'string' && x.length > 0)

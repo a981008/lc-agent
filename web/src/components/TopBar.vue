@@ -25,11 +25,7 @@ const cdLeftMs = computed(() => {
   if (!endsAt) return 0;
   return Math.max(0, Number(endsAt) - now.value);
 });
-const cdText = computed(() => {
-  const s = Math.ceil(cdLeftMs.value / 1000);
-  const m = Math.floor(s / 60);
-  return m > 0 ? `${m}:${String(s % 60).padStart(2, '0')}` : `${s}s`;
-});
+const cdText = computed(() => `${Math.ceil(cdLeftMs.value / 1000)}s`);
 </script>
 
 <template>

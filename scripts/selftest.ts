@@ -262,6 +262,8 @@ async function testCooldownConfig(): Promise<void> {
   check('min>max 自动交换', m2.cooldown.minMs === 120000 && m2.cooldown.maxMs === 600000, `min=${m2.cooldown.minMs}`);
   const m3 = mergeLimits(LIMITS_DEFAULTS, { cooldown: { minMs: Number.NaN } } as never);
   check('非法数值回退默认', m3.cooldown.minMs === LIMITS_DEFAULTS.cooldown.minMs, `min=${m3.cooldown.minMs}`);
+  const m4 = mergeLimits({ ...LIMITS_DEFAULTS }, { cooldown: { minMs: 30000, maxMs: 60000 } } as never);
+  check('收缩区间不改写 μ', m4.cooldown.muMs === LIMITS_DEFAULTS.cooldown.muMs, `mu=${m4.cooldown.muMs}`);
 
   // 状态机：修改 max 对已锚定冷却即时收缩
   let cfg = { enabled: true, muMs: 420000, sigmaMs: 0, minMs: 180000, maxMs: 720000 };
