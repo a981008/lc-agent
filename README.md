@@ -77,3 +77,5 @@ npm run start
 
 环境变量见 [.env.example](.env.example)；运行参数（冷却、配额、预算、时间窗）存库，面板可改。敏感值（Cookie / API Key）AES-256-GCM 加密落库，日志强制脱敏。
 
+**服务器部署**：完整清单见 [`docs/12-deployment.md`](docs/12-deployment.md)（`.env` 必改项、systemd、nginx+WS、备份迁移、上线检查清单）。
+
