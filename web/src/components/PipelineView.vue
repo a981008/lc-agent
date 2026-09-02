@@ -4,7 +4,7 @@ import LogTerminal from './LogTerminal.vue';
 </script>
 
 <template>
-  <section class="panel">
+  <section class="panel panel-pipeline">
     <h3>当前题目 Pipeline</h3>
     <div class="pipeline">
       <span :class="store.stages.fetch">抓取</span> →

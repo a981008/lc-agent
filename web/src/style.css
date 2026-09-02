@@ -13,11 +13,27 @@
 }
 
 * { box-sizing: border-box; }
+html, body, #app { height: 100%; }
 body {
   margin: 0; background: var(--bg); color: var(--text);
   font: 14px/1.6 "SF Mono", "Cascadia Code", Consolas, "PingFang SC", "Microsoft YaHei", monospace;
+  overflow: hidden; /* 页面级滚动条禁用：各面板内部滚动 */
+}
+/* 窄屏退化为整页滚动（否则内容被裁剪） */
+@media (max-width: 960px) {
+  body { overflow: auto; }
+  html, body, #app { height: auto; }
 }
 .hidden { display: none !important; }
+.spacer { flex: 1; }
+.err { color: var(--red); }
+.hint { color: var(--muted); font-size: 12px; }
+
+/* 面板内滚动条样式（细、暗） */
+.table-wrap::-webkit-scrollbar, .panel-pipeline::-webkit-scrollbar,
+.panel-history::-webkit-scrollbar, .log::-webkit-scrollbar, .modal-card::-webkit-scrollbar { width: 8px; height: 8px; }
+.table-wrap::-webkit-scrollbar-thumb, .panel-pipeline::-webkit-scrollbar-thumb,
+.panel-history::-webkit-scrollbar-thumb, .log::-webkit-scrollbar-thumb, .modal-card::-webkit-scrollbar-thumb { background: #2a3242; border-radius: 4px; }
 .spacer { flex: 1; }
 .err { color: var(--red); }
 .hint { color: var(--muted); font-size: 12px; }
@@ -28,7 +44,7 @@ body {
 .gate-card input { width: 100%; margin: 12px 0; }
 
 /* Top bar */
-.topbar { display: flex; gap: 10px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 10; }
+.topbar { display: flex; gap: 10px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--bg); flex: 0 0 auto; white-space: nowrap; overflow-x: auto; }
 .brand { font-weight: 700; margin-right: 8px; }
 .chip { padding: 2px 10px; border-radius: 999px; border: 1px solid var(--border); font-size: 12px; }
 .chip.muted { color: var(--muted); }
@@ -40,12 +56,28 @@ body {
 .chip.BLOCKED { color: var(--red); border-color: var(--red); }
 .chip.IDLE { color: var(--text); }
 
-/* 布局 */
-.grid { display: grid; grid-template-columns: 380px 1fr; gap: 12px; padding: 12px; }
-.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
-.panel.wide { margin: 0 12px 16px; }
+/* 布局：满屏三区（顶栏 / 左控制 / 右 pipeline+历史），页面不出滚动条 */
+.app-shell { display: flex; flex-direction: column; height: 100%; }
+.layout { flex: 1; min-height: 0; display: grid; grid-template-columns: 400px 1fr; gap: 12px; padding: 12px; }
+.col { min-height: 0; display: flex; }
+.col-left { flex-direction: column; }
+.col-right { flex-direction: column; gap: 12px; }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px; min-height: 0; }
+.panel.wide { margin: 0; }
 .panel h3 { margin: 14px 0 8px; font-size: 13px; color: var(--accent); }
 .panel h3:first-child { margin-top: 0; }
+
+/* 左列：控制面板占满高度，表单内部滚动 */
+.panel-controls { flex: 1; overflow-y: auto; }
+
+/* 右列上：pipeline 面板高度自适应，日志吃剩余空间（封顶 38vh） */
+.panel-pipeline { flex: 0 0 auto; display: flex; flex-direction: column; }
+.panel-pipeline .log { flex: 1 1 auto; height: auto; min-height: 120px; max-height: 38vh; }
+
+/* 右列下：历史面板弹性填充，表格容器内部滚动 */
+.panel-history { flex: 1; display: flex; flex-direction: column; }
+.table-wrap { flex: 1; min-height: 0; overflow: auto; }
+.table-wrap .pager { margin: 8px 0 2px; }
 
 .field { margin: 8px 0; display: flex; flex-direction: column; gap: 4px; }
 .field label { color: var(--muted); font-size: 12px; }
@@ -72,7 +104,7 @@ button.ghost { background: transparent; color: var(--muted); }
 .pipeline span.fail { color: var(--red); border-color: var(--red); }
 
 /* 日志 */
-.log { height: 320px; overflow-y: auto; background: #0a0d12; border: 1px solid var(--border); border-radius: 8px; padding: 8px; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+.log { height: 260px; overflow-y: auto; background: #0a0d12; border: 1px solid var(--border); border-radius: 8px; padding: 8px; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
 .log .warn { color: var(--yellow); }
 .log .error { color: var(--red); }
 .log .debug { color: var(--muted); }
@@ -95,7 +127,7 @@ td.actions button { padding: 2px 8px; font-size: 12px; }
 
 /* 弹窗 */
 .modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 50; }
-.modal-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; width: min(860px, 92vw); max-height: 86vh; overflow-y: auto; padding: 24px; position: relative; }
+.modal-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; width: min(860px, 92vw); max-height: 88vh; overflow-y: auto; padding: 24px; position: relative; }
 .close { position: absolute; top: 10px; right: 10px; }
 
 /* 极简 Markdown 渲染 */

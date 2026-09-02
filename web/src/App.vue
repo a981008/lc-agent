@@ -19,16 +19,19 @@ onUnmounted(() => window.removeEventListener('lc:unauthorized', onUnauthorized))
 <template>
   <TokenGate v-if="!store.authed" />
 
-  <template v-else>
+  <div v-else class="app-shell">
     <TopBar />
 
-    <main class="grid">
-      <ControlPanel />
-      <PipelineView />
+    <main class="layout">
+      <div class="col col-left">
+        <ControlPanel />
+      </div>
+      <div class="col col-right">
+        <PipelineView />
+        <HistoryPanel />
+      </div>
     </main>
 
-    <HistoryPanel />
-
     <AppModal />
-  </template>
+  </div>
 </template>

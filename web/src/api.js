@@ -2,6 +2,16 @@
 
 let token = localStorage.getItem('lc-token') || '';
 
+// 支持 ?token= 查询参数一键登录（lc.sh 打印的地址可直接点开），随后从地址栏抹除
+{
+  const q = new URLSearchParams(location.search).get('token');
+  if (q) {
+    token = q;
+    localStorage.setItem('lc-token', q);
+    history.replaceState(null, '', location.pathname);
+  }
+}
+
 export function getToken() {
   return token;
 }

@@ -7,7 +7,7 @@ import LimitsForm from './LimitsForm.vue';
 </script>
 
 <template>
-  <section class="panel">
+  <section class="panel panel-controls">
     <h3>控制</h3>
     <div class="btn-row">
       <button class="primary" @click="actions.doResume">▶ 恢复</button>
