@@ -280,15 +280,31 @@ async function testCooldownConfig(): Promise<void> {
   check('禁用开关即时归零', ((cfg = { ...cfg, enabled: false }), machine.cooldownRemainingMs() === 0), '0ms');
 }
 
+/** 原题链接注入：归档正文含 leetcode.cn 链接且渲染为 <a> */
+async function testLcLink(): Promise<void> {
+  console.log('\n[6] 原题链接注入');
+  const { withLcLink } = await import('../src/engine/archiver.js');
+  // @ts-expect-error 前端 JS 模块无类型声明
+  const { renderMarkdown } = (await import('../web/src/markdown.js')) as { renderMarkdown: (md: string) => string };
+
+  const md1 = withLcLink('# 66. 加一\n\n## 思路\n正文', 'plus-one', '66. 加一');
+  check('标题后插入链接', md1.startsWith('# 66. 加一\n\n> 原题链接：[66. 加一](https://leetcode.cn/problems/plus-one/)\n\n## 思路'), '位置与格式');
+  const md2 = withLcLink('无标题正文', 'two-sum', '');
+  check('无标题前置链接', md2.startsWith('> 原题链接：[two-sum](https://leetcode.cn/problems/two-sum/)\n\n无标题正文'), '回退 slug');
+  const md3 = withLcLink('# 已有链接\n\n> 原题链接：[x](https://leetcode.cn/problems/y/)\n', 'y', 'x');
+  check('幂等（不重复插入）', (md3.match(/原题链接/g) || []).length === 1, '单次出现');
+  check('渲染为 <a>', renderMarkdown(md1).includes('<a href="https://leetcode.cn/problems/plus-one/"'), '前端可点击');
+}
+
 async function testLlm(): Promise<void> {
   const baseUrl = process.env.SELFTEST_LLM_BASE_URL;
   const apiKey = process.env.SELFTEST_LLM_API_KEY;
   const model = process.env.SELFTEST_LLM_MODEL;
   if (!baseUrl || !apiKey || !model) {
-    console.log('\n[6] LLM 连通性：未设置 SELFTEST_LLM_* 环境变量，跳过');
+    console.log('\n[7] LLM 连通性：未设置 SELFTEST_LLM_* 环境变量，跳过');
     return;
   }
-  console.log('\n[6] LLM 连通性');
+  console.log('\n[7] LLM 连通性');
   const { AiClient } = await import('../src/ai/client.js');
   const { BudgetManager } = await import('../src/budget.js');
   const mem = new Map<string, unknown>();
@@ -329,6 +345,7 @@ async function main(): Promise<void> {
   testVerdictParsing();
   await testAcTabs();
   await testCooldownConfig();
+  await testLcLink();
   await testLlm();
 
   console.log(`\n=== 结果：${pass} 通过 / ${fail} 失败 ===`);

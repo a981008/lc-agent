@@ -127,3 +127,8 @@ td.actions button { padding: 2px 8px; font-size: 12px; }
 .md a { color: var(--accent); }
 .md img { max-width: 100%; }
 .md hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+/* 题目/题解的 LeetCode 外链 */
+.lc-link { color: var(--accent); text-decoration: none; }
+.lc-link:hover { text-decoration: underline; }
+.modal-link { display: inline-block; margin-bottom: 10px; color: var(--accent); }

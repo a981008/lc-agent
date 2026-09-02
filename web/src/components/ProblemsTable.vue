@@ -1,5 +1,5 @@
 <script setup>
-import { store, actions } from '../store.js';
+import { store, actions, lcProblemUrl } from '../store.js';
 </script>
 
 <template>
@@ -11,7 +11,7 @@ import { store, actions } from '../store.js';
       <tr v-for="p in store.problems.items" :key="p.slug">
         <td></td>
         <td>{{ p.slug }}</td>
-        <td>{{ p.title_cn || p.title || '' }}</td>
+        <td><a class="lc-link" :href="lcProblemUrl(p.slug)" target="_blank" rel="noopener" :title="'在 LeetCode 打开 ' + p.slug">{{ p.title_cn || p.title || p.slug }} ↗</a></td>
         <td :class="'diff-' + (p.difficulty ?? '')">{{ p.difficulty ?? '' }}</td>
         <td>{{ p.paid_only ? '🔒' : '' }} {{ p.ac_status ? '✅ AC' : p.lifecycle }}</td>
         <td>{{ p.attempts_count }}</td>

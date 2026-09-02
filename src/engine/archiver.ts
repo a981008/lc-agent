@@ -46,6 +46,23 @@ export function buildAcTabsBlock(codes: Record<string, string>): string {
   return `\`\`\`ac-tabs\n${JSON.stringify(codes)}\n\`\`\``;
 }
 
+/** leetcode.cn 原题页 URL */
+export function lcProblemUrl(slug: string): string {
+  return `https://leetcode.cn/problems/${slug}/`;
+}
+
+/** 在题解 Markdown 首个一级标题后插入原题链接（无标题则整体前置） */
+export function withLcLink(markdown: string, slug: string, title: string): string {
+  const line = `> 原题链接：[${title || slug}](${lcProblemUrl(slug)})`;
+  if (markdown.includes('原题链接：')) return markdown; // 幂等：已含链接不重复插入
+  const m = markdown.match(/^#[^\n]*\n/);
+  if (m && m.index === 0) {
+    const rest = markdown.slice(m[0].length);
+    return `${markdown.slice(0, m[0].length)}\n${line}\n${rest.startsWith('\n') ? '' : '\n'}${rest}`;
+  }
+  return `${line}\n\n${markdown}`;
+}
+
 function runGit(args: string[], cwd: string): { ok: boolean; output: string } {
   const r = spawnSync('git', args, { cwd, encoding: 'utf8', timeout: 30_000 });
   return { ok: r.status === 0, output: `${r.stdout ?? ''}${r.stderr ?? ''}`.trim() };
@@ -98,6 +115,7 @@ export class Archiver {
     for (const k of Object.keys(codes).sort()) {
       if (k !== 'JavaScript') ordered[k] = codes[k]!;
     }
+    markdown = withLcLink(markdown, slug, `${ctx.frontendId}. ${ctx.title}`);
     markdown = `${markdown.trimEnd()}\n\n## AC 代码\n\n${buildAcTabsBlock(ordered)}\n`;
 
     const dir = path.join(env.dataDir, 'solutions');

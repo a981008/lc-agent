@@ -5,6 +5,11 @@ import { api, getToken, setToken, clearToken } from './api.js';
 
 export const STAGE_KEYS = ['fetch', 'generate', 'local_test', 'submit', 'translate', 'archive'];
 
+/** leetcode.cn 题目页 */
+export function lcProblemUrl(slug) {
+  return `https://leetcode.cn/problems/${slug}/`;
+}
+
 export const store = reactive({
   authed: false,
   gateError: '',
