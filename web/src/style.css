@@ -77,7 +77,11 @@ body {
 /* 右列下：历史面板弹性填充，表格容器内部滚动 */
 .panel-history { flex: 1; display: flex; flex-direction: column; }
 .table-wrap { flex: 1; min-height: 0; overflow: auto; }
-.table-wrap .pager { margin: 8px 0 2px; }
+.table-wrap .pager {
+  position: sticky; bottom: 0; z-index: 2; /* 钉在滚动区域底部，无需滚到最下 */
+  background: var(--panel); border-top: 1px solid var(--border);
+  margin: 0; padding: 8px 0 2px;
+}
 
 .field { margin: 8px 0; display: flex; flex-direction: column; gap: 4px; }
 .field label { color: var(--muted); font-size: 12px; }
