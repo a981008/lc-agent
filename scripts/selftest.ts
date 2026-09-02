@@ -240,15 +240,55 @@ async function testAcTabs(): Promise<void> {
   check('正常链接保留', renderMarkdown('[LC](https://leetcode.cn)').includes('href="https://leetcode.cn"'), 'http(s) 可用');
 }
 
+/** 冷却可配置：mergeLimits 深合并/清洗 + clamp 对已锚定冷却即时生效 */
+async function testCooldownConfig(): Promise<void> {
+  console.log('\n[5] 冷却配置（可配 + 即时生效）');
+  const { sampleCooldown, StateMachine } = await import('../src/state/machine.js');
+  const { mergeLimits, LIMITS_DEFAULTS } = await import('../src/config.js');
+
+  check('min==max 采样恒定', sampleCooldown({ enabled: true, muMs: 0, sigmaMs: 0, minMs: 300000, maxMs: 300000 }) === 300000, '恒 300s');
+  check('采样落在 [min,max]', (() => {
+    for (let i = 0; i < 200; i++) {
+      const v = sampleCooldown(LIMITS_DEFAULTS.cooldown);
+      if (v < LIMITS_DEFAULTS.cooldown.minMs || v > LIMITS_DEFAULTS.cooldown.maxMs) return false;
+    }
+    return true;
+  })(), '200 次采样越界检查');
+
+  // mergeLimits：面板只传 enabled 不得丢参数（回归浅合并缺陷）
+  const m1 = mergeLimits(LIMITS_DEFAULTS, { cooldown: { enabled: false } } as never);
+  check('深合并不丢冷却参数', m1.cooldown.enabled === false && m1.cooldown.minMs === LIMITS_DEFAULTS.cooldown.minMs && m1.cooldown.muMs === LIMITS_DEFAULTS.cooldown.muMs, 'enabled 与参数共存');
+  const m2 = mergeLimits(LIMITS_DEFAULTS, { cooldown: { minMs: 600000, maxMs: 120000 } } as never);
+  check('min>max 自动交换', m2.cooldown.minMs === 120000 && m2.cooldown.maxMs === 600000, `min=${m2.cooldown.minMs}`);
+  const m3 = mergeLimits(LIMITS_DEFAULTS, { cooldown: { minMs: Number.NaN } } as never);
+  check('非法数值回退默认', m3.cooldown.minMs === LIMITS_DEFAULTS.cooldown.minMs, `min=${m3.cooldown.minMs}`);
+
+  // 状态机：修改 max 对已锚定冷却即时收缩
+  let cfg = { enabled: true, muMs: 420000, sigmaMs: 0, minMs: 180000, maxMs: 720000 };
+  const kv = new Map<string, unknown>();
+  const machine = new StateMachine(
+    ((k: string, f: unknown) => (kv.has(k) ? kv.get(k) : f)) as never,
+    ((k: string, v: unknown) => void kv.set(k, v)) as never,
+    () => cfg
+  );
+  const anchored = machine.anchorCooldown();
+  check('锚定值=μ（σ=0）', anchored === 420000, `${anchored}ms`);
+  cfg = { ...cfg, maxMs: 300000 }; // 用户把上限缩到 5 分钟
+  check('max 收缩即时生效', machine.cooldownRemainingMs() <= 300000, `${Math.round(machine.cooldownRemainingMs() / 1000)}s`);
+  cfg = { ...cfg, maxMs: 720000, minMs: 600000 }; // 抬高下限到 10 分钟
+  check('min 抬高即时生效', machine.cooldownRemainingMs() >= 600000 - 1000, `${Math.round(machine.cooldownRemainingMs() / 1000)}s`);
+  check('禁用开关即时归零', ((cfg = { ...cfg, enabled: false }), machine.cooldownRemainingMs() === 0), '0ms');
+}
+
 async function testLlm(): Promise<void> {
   const baseUrl = process.env.SELFTEST_LLM_BASE_URL;
   const apiKey = process.env.SELFTEST_LLM_API_KEY;
   const model = process.env.SELFTEST_LLM_MODEL;
   if (!baseUrl || !apiKey || !model) {
-    console.log('\n[5] LLM 连通性：未设置 SELFTEST_LLM_* 环境变量，跳过');
+    console.log('\n[6] LLM 连通性：未设置 SELFTEST_LLM_* 环境变量，跳过');
     return;
   }
-  console.log('\n[5] LLM 连通性');
+  console.log('\n[6] LLM 连通性');
   const { AiClient } = await import('../src/ai/client.js');
   const { BudgetManager } = await import('../src/budget.js');
   const mem = new Map<string, unknown>();
@@ -288,6 +328,7 @@ async function main(): Promise<void> {
   await testLcAnonymous();
   testVerdictParsing();
   await testAcTabs();
+  await testCooldownConfig();
   await testLlm();
 
   console.log(`\n=== 结果：${pass} 通过 / ${fail} 失败 ===`);

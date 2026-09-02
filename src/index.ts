@@ -2,7 +2,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import express from 'express';
-import { loadEnv, env, ensureDirs, decryptSecret, LIMITS_DEFAULTS, type LimitsConfig } from './config.js';
+import { loadEnv, env, ensureDirs, decryptSecret, LIMITS_DEFAULTS, mergeLimits, type LimitsConfig } from './config.js';
 import { initRepo, getRepo } from './db/repository.js';
 import { initEvents, log, eventsSince } from './events.js';
 import { LeetCodeClient, LcChallengeError } from './leetcode/client.js';
@@ -36,8 +36,7 @@ const loadLimits = (): LimitsConfig => ({
   ...repo.getMeta<Partial<LimitsConfig>>('config:limits', {}),
 });
 const setLimits = (patch: Partial<LimitsConfig>): void => {
-  const merged = { ...loadLimits(), ...patch };
-  repo.setMeta('config:limits', merged);
+  repo.setMeta('config:limits', mergeLimits(loadLimits(), patch));
 };
 
 /* ---------- 组件装配 ---------- */

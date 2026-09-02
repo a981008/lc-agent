@@ -37,6 +37,8 @@ export const store = reactive({
     llmModel: '',
     llmKey: '',
     cooldownEnabled: true,
+    cooldownMin: 3,
+    cooldownMax: 12,
     dryRun: false,
     quota: 10,
     translateLangs: ['python3', 'cpp', 'java'],
@@ -104,6 +106,8 @@ export async function refreshStatus() {
       store.forms.llmModel = s.llm.model || '';
       store.forms.llmProtocol = s.llm.protocol === 'anthropic' ? 'anthropic' : 'openai';
       store.forms.cooldownEnabled = s.limits.cooldown.enabled;
+      store.forms.cooldownMin = Math.round(s.limits.cooldown.minMs / 60000);
+      store.forms.cooldownMax = Math.round(s.limits.cooldown.maxMs / 60000);
       store.forms.dryRun = s.limits.dryRun;
       store.forms.quota = s.limits.dailySubmitLimit;
       store.forms.translateLangs = [...(s.limits.translateLangs || [])];
@@ -259,8 +263,17 @@ export async function saveLlm() {
 }
 
 export async function saveLimits() {
+  let cdMin = Number(store.forms.cooldownMin);
+  let cdMax = Number(store.forms.cooldownMax);
+  if (!(cdMin > 0)) cdMin = 1;
+  if (!(cdMax > 0)) cdMax = cdMin;
+  if (cdMin > cdMax) [cdMin, cdMax] = [cdMax, cdMin]; // min>max 自动交换
   const body = {
-    cooldown: { enabled: store.forms.cooldownEnabled },
+    cooldown: {
+      enabled: store.forms.cooldownEnabled,
+      minMs: Math.round(cdMin * 60000),
+      maxMs: Math.round(cdMax * 60000),
+    },
     dryRun: store.forms.dryRun,
     dailySubmitLimit: Number(store.forms.quota) || 10,
     translateLangs: [...store.forms.translateLangs],

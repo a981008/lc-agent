@@ -47,12 +47,15 @@ export function buildApp(ctx: Ctx): express.Express {
       : { status: null, at: null, configured: Boolean(acct.cookieEnc && acct.csrfEnc) };
     const llm = ctx.repo.getMeta<{ baseUrlEnc?: string; apiKeyEnc?: string; baseUrl?: string; model?: string; protocol?: string } | null>('config:llm', null);
     const counts = ctx.repo.counts();
+    const cdRemain = ctx.machine.cooldownRemainingMs();
     res.json({
       state: ctx.machine.state,
       blockedReason: ctx.machine.blockedReason,
       currentSlug: ctx.machine.currentSlug,
       lastStateChangeReason: ctx.machine.snapshot().lastStateChangeReason,
-      cooldownRemainingMs: ctx.machine.cooldownRemainingMs(),
+      cooldownRemainingMs: cdRemain,
+      // 绝对截止时间：前端据此每秒本地倒计时，无需轮询
+      cooldownEndsAt: cdRemain > 0 ? Date.now() + cdRemain : null,
       locked: ctx.machine.isLocked(),
       cookie: probe,
       llm: {

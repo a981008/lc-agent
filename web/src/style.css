@@ -35,6 +35,7 @@ body {
 .chip.RUNNING { color: var(--green); border-color: var(--green); }
 .chip.IN_PROGRESS { color: var(--purple); border-color: var(--purple); }
 .chip.COOLING { color: var(--yellow); border-color: var(--yellow); }
+.chip.cooling { color: var(--yellow); border-color: var(--yellow); font-variant-numeric: tabular-nums; }
 .chip.PAUSED { color: var(--yellow); border-color: var(--yellow); }
 .chip.BLOCKED { color: var(--red); border-color: var(--red); }
 .chip.IDLE { color: var(--text); }

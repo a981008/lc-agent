@@ -119,3 +119,32 @@ export const LIMITS_DEFAULTS: LimitsConfig = {
   notifyWebhook: '',
   dryRun: false,
 };
+
+const numOr = (v: unknown, fallback: number): number => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : fallback);
+
+/**
+ * limits 合并（POST /api/config/limits 用）：cooldown 子对象深合并，
+ * 数值清洗（非法回退默认值）并约束 minMs <= muMs <= maxMs。
+ * 修复浅合并缺陷：此前面板仅回传 cooldown.enabled 会把 mu/sigma/min/max 覆盖丢失。
+ */
+export function mergeLimits(prev: LimitsConfig, patch?: Partial<LimitsConfig>): LimitsConfig {
+  const p = patch ?? {};
+  const cd = { ...prev.cooldown, ...(p.cooldown ?? {}) };
+  cd.muMs = numOr(cd.muMs, LIMITS_DEFAULTS.cooldown.muMs);
+  cd.sigmaMs = Math.max(0, numOr(cd.sigmaMs, LIMITS_DEFAULTS.cooldown.sigmaMs));
+  cd.minMs = Math.max(0, numOr(cd.minMs, LIMITS_DEFAULTS.cooldown.minMs));
+  cd.maxMs = Math.max(0, numOr(cd.maxMs, LIMITS_DEFAULTS.cooldown.maxMs));
+  if (cd.minMs > cd.maxMs) [cd.minMs, cd.maxMs] = [cd.maxMs, cd.minMs]; // min>max 自动交换
+  cd.muMs = Math.min(Math.max(cd.muMs, cd.minMs), cd.maxMs);
+  cd.enabled = Boolean(cd.enabled);
+  const translateLangs = Array.isArray(p.translateLangs)
+    ? p.translateLangs.filter((x): x is string => typeof x === 'string' && x.length > 0)
+    : prev.translateLangs;
+  return {
+    ...prev,
+    ...p,
+    cooldown: cd,
+    dailySubmitLimit: Math.min(1000, Math.max(1, numOr(p.dailySubmitLimit, prev.dailySubmitLimit))),
+    translateLangs,
+  };
+}

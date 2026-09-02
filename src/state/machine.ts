@@ -238,7 +238,9 @@ export class StateMachine {
   cooldownRemainingMs(): number {
     const cfg = this.cooldownCfg();
     if (!cfg.enabled || !this.snap.lastSubmitAt) return 0;
-    const cd = this.snap.lastCooldownMs ?? sampleCooldown(cfg);
+    const raw = this.snap.lastCooldownMs ?? sampleCooldown(cfg);
+    // clamp 到当前配置区间：修改 min/max 对已锚定的冷却即时生效
+    const cd = Math.min(Math.max(raw, cfg.minMs), cfg.maxMs);
     const remain = this.snap.lastSubmitAt + cd - Date.now();
     return Math.max(0, remain);
   }

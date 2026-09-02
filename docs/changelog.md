@@ -15,6 +15,7 @@ source: v0.2 §7
 | v0.5 | 前端迁移为 **标准 Vue 工程**（Vite + SFC 组件化，`web/` 独立 package.json，12 个组件 + reactive store；`web/dist` 由后端服务，dev 模式 Vite 代理 `/api`、`/ws`）；新增启停脚本 `lc.sh`（start/stop/restart/status/logs，优雅停机，自动构建前端） |
 | v0.6 | **多语言翻译与提交**：JS AC 后自动翻译为 `limits.translateLangs`（默认 python3/cpp/java）并逐个真实提交、判题（每语言 ≤2 次提交，AI 修复可介入；单语言失败不阻塞归档）；`attempts` 新增 `lang` 列、`solutions` 新增 `codes` 列（存量库自动迁移）；题解 AC 代码改为**多语言页签**（`ac-tabs` 约定块 + 前端渲染器 + 事件委托）；管线新增 `translate` 阶段；题解 LLM 生成不再包含代码块 |
 | v0.7 | **题解渲染修复**：Markdown 渲染从手写正则迁移到 **marked**（GFM 表格/有序无序列表/任务清单/引用完整支持，题解中的对比表格不再显示为裸管道文本）；保留 `ac-tabs` 多语言页签约定；原始 HTML 一律转义防注入，链接协议白名单（http/https/mailto），补齐 `.md` 表格与列表样式 |
+| v0.8 | **冷却可配置 + 面板倒计时**：冷却 min/max（分钟）可在「运行参数」配置（μ/σ 深合并保留，`mergeLimits` 数值清洗、min>max 自动交换；修改对已锚定的冷却**即时生效**）；面板顶部 CD 以 `cooldownEndsAt` 锚定、**每秒本地刷新**（m:ss，无需轮询）；修复浅合并缺陷（此前仅保存 enabled 会丢 μ/σ/min/max 导致冷却失效） |
 
 ---
 
