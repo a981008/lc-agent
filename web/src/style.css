@@ -168,3 +168,9 @@ td.actions button { padding: 2px 8px; font-size: 12px; }
 /* 左侧配置面板标签页 */
 .config-tabs { margin-top: 14px; border-bottom: 1px solid var(--border); }
 .config-tabs .tab { padding: 6px 12px; font-size: 13px; }
+
+/* 分页条 */
+.pager button:disabled { opacity: 0.4; cursor: default; }
+.pager button:disabled:hover { border-color: var(--border); }
+.pager-size { color: var(--muted); font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
+.pager-size select { width: auto; padding: 2px 6px; font-size: 12px; }

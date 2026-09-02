@@ -1,5 +1,8 @@
 <script setup>
+import { computed } from 'vue';
 import { store, actions, lcProblemUrl } from '../store.js';
+
+const totalPages = computed(() => Math.max(1, Math.ceil((store.problems.total ?? 0) / store.pageSize)));
 </script>
 
 <template>
@@ -20,8 +23,17 @@ import { store, actions, lcProblemUrl } from '../store.js';
     </tbody>
   </table>
   <div class="pager">
-    <button @click="actions.pagePrev">‹ 上一页</button>
-    <span>第 {{ store.page }} 页 / 共 {{ store.problems.total }} 题</span>
-    <button @click="actions.pageNext">下一页 ›</button>
+    <button :disabled="store.page <= 1" @click="actions.pagePrev">‹ 上一页</button>
+    <span>第 <b>{{ store.page }}</b> / {{ totalPages }} 页（共 {{ store.problems.total }} 题）</span>
+    <button :disabled="store.page >= totalPages" @click="actions.pageNext">下一页 ›</button>
+    <span class="spacer"></span>
+    <label class="pager-size">每页
+      <select :value="store.pageSize" @change="actions.setPageSize($event.target.value)">
+        <option value="20">20</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+      </select>
+      条
+    </label>
   </div>
 </template>

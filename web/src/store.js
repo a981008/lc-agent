@@ -31,7 +31,7 @@ export const store = reactive({
   tab: 'problems',
   problems: { items: [], total: 0 },
   page: 1,
-  pageSize: 50,
+  pageSize: 20,
   solutions: [],
   modal: { open: false, kind: 'solution', html: '', text: '' },
   cookieResult: '',
@@ -303,6 +303,12 @@ export async function syncProblems() {
 export async function loadProblems() {
   try {
     const r = await api(`/problems?page=${store.page}&pageSize=${store.pageSize}`);
+    // 数据变少（如重新同步）后当前页可能越界：回退到最后一页
+    const maxPage = Math.max(1, Math.ceil(r.total / store.pageSize));
+    if (store.page > maxPage) {
+      store.page = maxPage;
+      return loadProblems();
+    }
     store.problems = { items: r.items, total: r.total };
   } catch (e) { if (!e.unauthorized) appendLog('error', `题目加载失败：${e.message}`); }
 }
@@ -335,12 +341,20 @@ export function switchTab(tab) {
   if (tab === 'solutions') loadSolutions();
 }
 
+export function setPageSize(n) {
+  const size = [20, 50, 100].includes(Number(n)) ? Number(n) : 20;
+  if (store.pageSize === size) return;
+  store.pageSize = size;
+  store.page = 1;
+  loadProblems();
+}
+
 export function pagePrev() { if (store.page > 1) { store.page--; loadProblems(); } }
 export function pageNext() { store.page++; loadProblems(); }
 
 /* 组件统一引用的动作集合 */
 export const actions = {
-  setConfigTab,
+  setConfigTab, setPageSize,
   initToken, submitToken, logout, refreshStatus,
   doResume, doPause, doHalt, doTrigger,
   saveStrategy, saveCookie, saveLlm, saveLimits, syncProblems,

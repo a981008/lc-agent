@@ -181,15 +181,18 @@ export function buildApp(ctx: Ctx): express.Express {
 
   app.get('/api/problems', (req, res) => {
     const lifecycle = (req.query.lifecycle as string) || undefined;
-    const page = Number(req.query.page ?? 1) || 1;
+    const page = Math.max(Number(req.query.page ?? 1) || 1, 1);
+    // 每页条数可选 20/50/100（客户端可调；上限 200 防误传）
+    const pageSize = Math.min(Math.max(Number(req.query.pageSize) || 50, 1), 200);
     // lifecycle=accepted 是别名：按 ac_status=1 全库过滤（避免只在当前页内过滤）
     const isAcceptedQuery = lifecycle === 'accepted';
     const { items, total } = ctx.repo.listProblems({
       lifecycle: isAcceptedQuery ? undefined : lifecycle,
       ac_status: isAcceptedQuery ? 1 : undefined,
       page,
+      pageSize,
     });
-    res.json({ items, total, page });
+    res.json({ items, total, page, pageSize });
   });
 
   app.get('/api/problems/:slug/attempts', (req, res) => {
