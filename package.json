@@ -1,0 +1,37 @@
+{
+  "name": "lc-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "全自动 LeetCode 机器人系统 (Node.js/TS) — 见 spec.md 与 docs/",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "prestart": "node scripts/preflight.cjs",
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "start:daemon": "./lc.sh start",
+    "stop:daemon": "./lc.sh stop",
+    "status:daemon": "./lc.sh status",
+    "logs:daemon": "./lc.sh logs",
+    "web:dev": "npm --prefix web run dev",
+    "web:build": "npm --prefix web run build",
+    "typecheck": "tsc --noEmit",
+    "selftest": "tsx scripts/selftest.ts"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "express": "^5.1.0",
+    "vue": "^3.5.42",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/express": "^5.0.2",
+    "@types/node": "^22.15.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}
