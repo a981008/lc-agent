@@ -133,9 +133,22 @@ export class Archiver {
     let altSection = '';
     if (alternatives?.length) {
       altSection = '\n## 多解法\n\n> 以下解法均已提交 LeetCode 并 AC。\n\n';
-      alternatives.forEach((a, i) => {
-        altSection += `### 解法 ${i + 2}：${a.approach}\n\n\`\`\`javascript\n${a.code}\n\`\`\`\n\n`;
-      });
+      for (let i = 0; i < alternatives.length; i++) {
+        const a = alternatives[i]!;
+        // 每个补充解法生成专属讲解（思路/关键点/复杂度）；LLM 失败回退一句话
+        let explain = '';
+        try {
+          explain = await this.ai.explainAlternative(ctx, code, a);
+        } catch (e) {
+          log(`补充解法讲解生成失败，回退简述：${(e as Error).message}`, 'warn');
+          explain = `**解题思路**：${a.approach}。`;
+        }
+        const cleaned = explain
+          .replace(/^#{1,6}\s.*$/gm, '') // 剥掉讲解里可能出现的标题行，避免打乱文档层级
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
+        altSection += `### 解法 ${i + 2}：${a.approach}\n\n${cleaned || `**解题思路**：${a.approach}。`}\n\n\`\`\`javascript\n${a.code}\n\`\`\`\n\n`;
+      }
     }
     markdown = `${markdown.trimEnd()}${altSection}\n## AC 代码\n\n${buildAcTabsBlock(ordered)}\n`;
 

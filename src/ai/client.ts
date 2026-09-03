@@ -388,6 +388,40 @@ ${code}
     return content;
   }
 
+  /** 为单个补充解法生成题解讲解（思路/关键点/复杂度，不含代码块——代码由系统附加） */
+  async explainAlternative(
+    ctx: ProblemCtx,
+    acceptedCode: string,
+    alt: { approach: string; code: string }
+  ): Promise<string> {
+    const user = `${this.problemSection(ctx)}
+
+主解法（已 AC）：
+\`\`\`javascript
+${acceptedCode}
+\`\`\`
+
+补充解法（已 AC，思路：${alt.approach}）：
+\`\`\`javascript
+${alt.code}
+\`\`\`
+
+请为这个补充解法写一段中文讲解（Markdown），包含：
+1. **解题思路**：该解法如何思考这个问题，与主流 DP/哈希等方法的联系或区别；
+2. **关键点**：实现中最容易出错的 1-2 个细节；
+3. **复杂度**：时间/空间复杂度（用 LaTeX 表达）。
+
+要求：只讲这一个解法；不输出任何代码块；**不要输出任何标题（#）**，只用加粗小标题与列表；总长不超过 300 字；只输出 Markdown 片段。`;
+    const { content } = await this.chat(
+      [
+        { role: 'system', content: '你是算法题解作者，输出高质量中文 Markdown 题解片段。' },
+        { role: 'user', content: user },
+      ],
+      { maxTokens: 1200 }
+    );
+    return content;
+  }
+
   /** AC 解法翻译：JS → 目标语言（LeetCode 判题格式，签名与模板一致） */
   async translateSolution(
     ctx: ProblemCtx,
