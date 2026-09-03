@@ -30,6 +30,7 @@ export const store = reactive({
   currentProblem: '（当前无任务）',
   tab: 'problems',
   problems: { items: [], total: 0 },
+  languages: [],
   page: 1,
   pageSize: 20,
   solutions: [],
@@ -335,6 +336,14 @@ export async function loadProblems() {
     }
     store.problems = { items: r.items, total: r.total };
   } catch (e) { if (!e.unauthorized) appendLog('error', `题目加载失败：${e.message}`); }
+}
+
+/** LC 支持的全部提交语言（服务端 24h 缓存；动态获取不写死） */
+export async function loadLanguages() {
+  try {
+    const r = await api('/languages');
+    store.languages = [...new Set((r.items ?? []).map((x) => x.slug))].sort();
+  } catch (e) { if (!e.unauthorized) appendLog('error', `语言列表加载失败：${e.message}`); }
 }
 
 export async function loadSolutions() {
