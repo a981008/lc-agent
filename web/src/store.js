@@ -27,7 +27,7 @@ export const store = reactive({
   lastSeq: 0,
   stages: { fetch: '', generate: '', local_test: '', submit: '', translate: '', archive: '' },
   pipelineSlug: null,
-  currentProblem: '（当前无任务）',
+  currentProblem: { slug: '', title: '' },
   aiProcess: '',   // AI 解题过程（流式累计）
   aiProcessStage: '',  // 正在输出的阶段：generate/translate
   tab: 'problems',
@@ -77,6 +77,39 @@ function resetStages() {
 
 if (typeof window !== 'undefined') (window).__lcStore = store;
 
+/* 当前题目：slug + 中文标题（标题从题库缓存/懒拉一次检索） */
+const _titleCache = new Map();
+
+export function setCurrentProblem(slug) {
+  if (!slug) {
+    store.currentProblem = { slug: '', title: '' };
+    return;
+  }
+  store.currentProblem = { slug, title: _titleCache.get(slug) || '' };
+  ensureTitle(slug);
+}
+
+async function ensureTitle(slug) {
+  if (_titleCache.has(slug)) return;
+  // 先看当前页题目列表里有没有
+  const local = store.problems.items.find((p) => p.slug === slug);
+  if (local) {
+    _titleCache.set(slug, local.title_cn || local.title || '');
+    if (store.currentProblem.slug === slug) store.currentProblem = { slug, title: _titleCache.get(slug) };
+    return;
+  }
+  if (_titleCache.has(slug + ':miss')) return; // 防重复检索
+  _titleCache.set(slug + ':miss', '1');
+  try {
+    const r = await api(`/problems?q=${encodeURIComponent(slug)}&pageSize=5`);
+    const hit = (r.items || []).find((p) => p.slug === slug);
+    const title = hit ? (hit.title_cn || hit.title || '') : '';
+    _titleCache.set(slug, title);
+    _titleCache.delete(slug + ':miss');
+    if (store.currentProblem.slug === slug && title) store.currentProblem = { slug, title };
+  } catch { /* 标题拉取失败不影响主流程 */ }
+}
+
 export function appendLog(level, text) {
   store.logs.push({ id: ++store.logSeq, level, text });
   // 环形缓冲 800 条（LogTerminal 按「尾部窗口」分页渲染，避免 DOM 无限变大）*/
@@ -100,7 +133,7 @@ export function markStage(p) {
     store.aiProcessStage = p.stage;
     return;
   }
-  if (p.status === 'start') store.currentProblem = `当前题目：${p.slug}`;
+  if (p.status === 'start') setCurrentProblem(p.slug);
   // 阶段推进时给过程区加分隔行
   if (p.status === 'start' && store.aiProcess) store.aiProcess += `\n———— ${p.stage} ————`;
   if (p.detail) appendLog('debug', `[pipeline] ${p.slug}/${p.stage}: ${p.detail}`);
@@ -116,9 +149,9 @@ export function handleEvent(e) {
       if (e.payload?.to && store.status) {
         store.status = { ...store.status, state: e.payload.to };
         if (e.payload.to === 'IN_PROGRESS' && (e.payload.slug || e.payload.detail)) {
-          store.currentProblem = `当前题目：${e.payload.slug ?? e.payload.detail}`;
+          setCurrentProblem(e.payload.slug ?? e.payload.detail);
         }
-        if (e.payload.to !== 'IN_PROGRESS') store.currentProblem = '（当前无任务）';
+        if (e.payload.to !== 'IN_PROGRESS') store.currentProblem = { slug: '', title: '' };
       }
       refreshStatus();
       // 一题结束（IN_PROGRESS → 空闲/冷却）：刷新题目列表（尝试数、三态状态即时更新）
@@ -151,7 +184,8 @@ export async function refreshStatus() {
     const s = await api('/status');
     store.status = s;
     // 当前题目信息以服务端状态为准（刷新页面后不残留旧文案）
-    store.currentProblem = s.currentSlug ? `当前题目：${s.currentSlug}` : '（当前无任务）';
+    if (s.currentSlug) setCurrentProblem(s.currentSlug);
+    else store.currentProblem = { slug: '', title: '' };
     if (!store._filled) {
       store._filled = true;
       store.forms.mode = s.strategy.mode;
