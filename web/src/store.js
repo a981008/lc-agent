@@ -88,11 +88,22 @@ export function handleEvent(e) {
     case 'log_stream':
       appendLog(e.payload.level || 'info', e.payload.text);
       break;
-    case 'state_change':
+    case 'state_change': {
+      const prev = store.status?.state;
       refreshStatus();
+      // 一题结束（IN_PROGRESS → 空闲/冷却）：刷新题目列表（尝试数、三态状态即时更新）
+      if (prev === 'IN_PROGRESS' && (e.payload?.to === 'IDLE' || e.payload?.to === 'COOLING')) {
+        loadProblems();
+      }
       break;
+    }
     case 'pipeline_step':
       markStage(e.payload);
+      // 归档完成 → AC 题解列表自动刷新（并按当前所在页签即时可见）
+      if (e.payload?.stage === 'archive' && e.payload?.status === 'done') {
+        loadSolutions();
+        loadProblems();
+      }
       break;
     case 'attempt_result':
       appendLog('info', `[判题] ${e.payload.slug}: ${e.payload.verdict} ${e.payload.runtime_ms ?? '?'}ms（内存击败 ${e.payload.memory_percentile ?? '?'}%）`);
