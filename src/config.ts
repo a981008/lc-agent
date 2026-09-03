@@ -94,6 +94,7 @@ export function maskSecret(s: string): string {
 
 export interface LimitsConfig {
   cooldown: { enabled: boolean; muMs: number; sigmaMs: number; minMs: number; maxMs: number };
+  /** 每日提交配额；0 = 无限制 */
   dailySubmitLimit: number;
   runWindow: { enabled: boolean; start: string; end: string }; // HH:mm，end 可为 "24:00"
   minRequestIntervalMs: number;
@@ -150,7 +151,8 @@ export function mergeLimits(prev: LimitsConfig, patch?: Partial<LimitsConfig>): 
     ...prev,
     ...p,
     cooldown: cd,
-    dailySubmitLimit: Math.min(1000, Math.max(1, numOr(p.dailySubmitLimit, prev.dailySubmitLimit))),
+    // 0 = 无限制；负数回退默认 10
+    dailySubmitLimit: (() => { const q = numOr(p.dailySubmitLimit, prev.dailySubmitLimit); return q < 0 ? 10 : Math.min(1000, q); })(),
     translateLangs,
   };
 }

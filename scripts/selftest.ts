@@ -282,6 +282,16 @@ async function testCooldownConfig(): Promise<void> {
   check('禁用开关即时归零', ((cfg = { ...cfg, enabled: false }), machine.cooldownRemainingMs() === 0), '0ms');
 }
 
+/** 提交配额：0=无限制（mergeLimits 保留 0、负数回退默认） */
+async function testQuotaUnlimited(): Promise<void> {
+  console.log('\n[11] 提交配额无限制');
+  const { mergeLimits, LIMITS_DEFAULTS } = await import('../src/config.js');
+  const z = mergeLimits(LIMITS_DEFAULTS, { dailySubmitLimit: 0 });
+  check('0 视为无限制（保留 0）', z.dailySubmitLimit === 0, String(z.dailySubmitLimit));
+  const neg = mergeLimits(LIMITS_DEFAULTS, { dailySubmitLimit: -5 });
+  check('负数回退默认 10', neg.dailySubmitLimit === 10, String(neg.dailySubmitLimit));
+}
+
 /** 翻译语言解析：all 语义 / 显式交集 / 旧 go 归一化 */
 async function testTranslateTargets(): Promise<void> {
   console.log('\n[9] 翻译语言解析');
@@ -362,10 +372,10 @@ async function testLlm(): Promise<void> {
   const apiKey = process.env.SELFTEST_LLM_API_KEY;
   const model = process.env.SELFTEST_LLM_MODEL;
   if (!baseUrl || !apiKey || !model) {
-    console.log('\n[11] LLM 连通性：未设置 SELFTEST_LLM_* 环境变量，跳过');
+    console.log('\n[12] LLM 连通性：未设置 SELFTEST_LLM_* 环境变量，跳过');
     return;
   }
-  console.log('\n[11] LLM 连通性');
+  console.log('\n[12] LLM 连通性');
   const { AiClient } = await import('../src/ai/client.js');
   const { BudgetManager } = await import('../src/budget.js');
   const mem = new Map<string, unknown>();
@@ -411,6 +421,7 @@ async function main(): Promise<void> {
   await testMathRender();
   await testTranslateTargets();
   await testAcTabsEnhancements();
+  await testQuotaUnlimited();
   await testLlm();
 
   console.log(`\n=== 结果：${pass} 通过 / ${fail} 失败 ===`);

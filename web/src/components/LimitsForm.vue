@@ -35,7 +35,13 @@ function toggleAll() {
     <label><input type="checkbox" v-model="store.forms.cooldownEnabled" />冷却启用</label>
     <label><input type="checkbox" v-model="store.forms.dryRun" />Dry-Run（模拟判题）</label>
   </div>
-  <div class="field"><label>每日提交配额</label><input v-model.number="store.forms.quota" type="number" min="1" max="1000" /></div>
+  <div class="field">
+    <label>每日提交配额（0 = 无限制）</label>
+    <span class="checks">
+      <input v-model.number="store.forms.quota" type="number" min="0" max="1000" :disabled="store.forms.quotaUnlimited" style="width:90px" />
+      <label><input type="checkbox" v-model="store.forms.quotaUnlimited" />无限制</label>
+    </span>
+  </div>
   <div class="field checks">
     <label><input v-model.number="store.forms.cooldownMin" type="number" min="1" max="7200" style="width:80px" />最小冷却（秒）</label>
     <label><input v-model.number="store.forms.cooldownMax" type="number" min="1" max="7200" style="width:80px" />最大冷却（秒）</label>

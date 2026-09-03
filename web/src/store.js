@@ -52,6 +52,7 @@ export const store = reactive({
     cooldownMax: 720,
     dryRun: false,
     quota: 10,
+    quotaUnlimited: false,
     translateLangs: ['python3', 'cpp', 'java'],
   },
   _filled: false,
@@ -132,6 +133,7 @@ export async function refreshStatus() {
       store.forms.cooldownMax = Math.round(s.limits.cooldown.maxMs / 1000);
       store.forms.dryRun = s.limits.dryRun;
       store.forms.quota = s.limits.dailySubmitLimit;
+      store.forms.quotaUnlimited = s.limits.dailySubmitLimit === 0;
       store.forms.translateLangs = (s.limits.translateLangs || []).map((l) => (l === 'go' ? 'golang' : l));
     }
   } catch (e) {
@@ -308,7 +310,7 @@ export async function saveLimits() {
       maxMs: Math.round(cdMax * 1000),
     },
     dryRun: store.forms.dryRun,
-    dailySubmitLimit: Number(store.forms.quota) || 10,
+    dailySubmitLimit: store.forms.quotaUnlimited ? 0 : (Number(store.forms.quota) || 10),
     translateLangs: [...store.forms.translateLangs],
   };
   try { await api('/config/limits', { method: 'POST', body: JSON.stringify(body) }); appendLog('info', '运行参数已保存'); }

@@ -138,6 +138,12 @@ export class Worker {
     return { ...STRATEGY_DEFAULT, ...this.repo.getMeta<Partial<StrategyConfig>>('strategy', {}) };
   }
 
+  /** 每日提交配额是否已用尽（dailySubmitLimit=0 视为无限制） */
+  private quotaReached(): boolean {
+    const lim = this.limits();
+    return lim.dailySubmitLimit > 0 && this.repo.submitCountToday() >= lim.dailySubmitLimit;
+  }
+
   setStrategy(s: Partial<StrategyConfig>): StrategyConfig {
     const next = { ...this.getStrategy(), ...s } as StrategyConfig;
     delete (next as { manualSlug?: string }).manualSlug; // 旧字段清理
@@ -181,7 +187,7 @@ export class Worker {
       return { started: false, reason: `${pick.slug} 已解答或为付费题，不可跑` };
     }
     if (!pick) return { started: false, reason: '没有可运行的题目（题库未同步或策略过滤过严）' };
-    if (this.repo.submitCountToday() >= this.limits().dailySubmitLimit) {
+    if (this.quotaReached()) {
       return { started: false, reason: '已达每日提交配额' };
     }
     this.machine.toInProgressManual(pick.slug);
@@ -214,7 +220,7 @@ export class Worker {
       this.machine.toRunning('cooldown_done');
 
       // 每日提交配额（docs/01 §3）
-      if (this.repo.submitCountToday() >= lim.dailySubmitLimit) {
+      if (this.quotaReached()) {
         log('已达每日提交配额，转 PAUSED 等待人工', 'warn');
         this.machine.requestPause('daily_quota');
         return;
@@ -464,7 +470,7 @@ export class Worker {
 
     /* ---- submit + 失败分流（docs/06 §4） ---- */
     while (submitsUsed < lim.maxSubmits) {
-      if (!lim.dryRun && this.repo.submitCountToday() >= lim.dailySubmitLimit) {
+      if (!lim.dryRun && this.quotaReached()) {
         log('达到每日提交配额，停止提交', 'warn');
         break;
       }
@@ -715,7 +721,7 @@ export class Worker {
     let acCount = 0;
     for (const lang of langs) {
       if (this.machine.haltRequested) break; // 请求终止时不再翻译
-      if (calls >= lim.llmPerProblemCalls || this.repo.submitCountToday() >= lim.dailySubmitLimit) {
+      if (calls >= lim.llmPerProblemCalls || this.quotaReached()) {
         summaryParts.push(`翻译跳过 ${langLabel(lang)}（预算/配额）`);
         break;
       }
