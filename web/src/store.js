@@ -28,8 +28,6 @@ export const store = reactive({
   stages: { fetch: '', generate: '', local_test: '', submit: '', translate: '', archive: '' },
   pipelineSlug: null,
   currentProblem: { slug: '', title: '' },
-  aiProcess: '',   // AI 解题过程（流式累计）
-  aiProcessStage: '',  // 正在输出的阶段：generate/translate
   tab: 'problems',
   problems: { items: [], total: 0 },
   languages: [],
@@ -120,22 +118,13 @@ export function markStage(p) {
   if (store.pipelineSlug !== p.slug) {
     resetStages();
     store.pipelineSlug = p.slug;
-    store.aiProcess = '';
-    store.aiProcessStage = '';
   }
   if (STAGE_KEYS.includes(p.stage)) {
     // delta 只是增量输出，不覆盖阶段状态灯
     if (p.status !== 'delta') store.stages[p.stage] = p.status;
   }
-  if (p.status === 'delta') {
-    if (p.stage === 'translate') return; // 翻译过程不进 AI 解题过程面板
-    store.aiProcess += (store.aiProcess ? '\n' : '') + p.detail;
-    store.aiProcessStage = p.stage;
-    return;
-  }
+  if (p.status === 'delta') return; // 流式增量已无消费方（AI 解题过程模块已移除）
   if (p.status === 'start') setCurrentProblem(p.slug);
-  // 阶段推进时给过程区加分隔行
-  if (p.status === 'start' && store.aiProcess) store.aiProcess += `\n———— ${p.stage} ————`;
   if (p.detail) appendLog('debug', `[pipeline] ${p.slug}/${p.stage}: ${p.detail}`);
 }
 export function handleEvent(e) {

@@ -482,24 +482,7 @@ export class Worker {
     }
     try {
       if (!code) {
-        // AI 解题过程实时外显：流式增量 → pipeline_step(delta) → 前端「AI 解题过程」面板
-        let deltaBuf = '';
-        let lastFlush = 0;
-        const flushDelta = (force = false) => {
-          if (!deltaBuf) return;
-          const now = Date.now();
-          if (!force && now - lastFlush < 400) return;
-          this.emitStep(slug, 'generate', 'delta', deltaBuf);
-          deltaBuf = '';
-          lastFlush = now;
-        };
-        const onDelta = (d: string) => {
-          deltaBuf += d;
-          if (deltaBuf.length >= 800) flushDelta(true);
-          else flushDelta();
-        };
-        const gen = await this.ai.generateSolution(ctx, onDelta);
-        flushDelta(true);
+        const gen = await this.ai.generateSolution(ctx);
         llmCalls++;
         code = gen.code;
         gen.predicted.forEach((pred, i) => {
@@ -933,7 +916,7 @@ export class Worker {
       for (let tries = 0; tries < 2 && !passed; tries++) {
         try {
           if (tries === 0) {
-            // 翻译过程不流式展示（AI 解题过程面板仅显示生成阶段）；完成后由状态灯汇报结果
+            // 翻译过程不流式外显；完成后由状态灯与摘要汇报结果
             const r = await this.ai.translateSolution({ ...this.describeCtx(q) }, acCode, lang, tpl.code);
             calls++;
             code = r.code;

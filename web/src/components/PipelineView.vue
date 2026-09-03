@@ -1,13 +1,6 @@
 <script setup>
-import { nextTick, ref, watch } from 'vue';
 import { store, lcProblemUrl } from '../store.js';
 import LogTerminal from './LogTerminal.vue';
-
-const aiBody = ref(null);
-watch(() => store.aiProcess, async () => {
-  await nextTick();
-  if (aiBody.value) aiBody.value.scrollTop = aiBody.value.scrollHeight;
-});
 </script>
 
 <template>
@@ -26,10 +19,6 @@ watch(() => store.aiProcess, async () => {
         当前题目：<a class="lc-link" :href="lcProblemUrl(store.currentProblem.slug)" target="_blank" rel="noopener" :title="'在 LeetCode 打开 ' + store.currentProblem.slug">{{ store.currentProblem.title || store.currentProblem.slug }} ↗</a>
       </template>
       <template v-else>（当前无任务）</template>
-    </div>
-    <div v-if="store.aiProcess" class="ai-process">
-      <div class="ai-process-head">🤖 AI 解题过程（{{ store.aiProcessStage === 'translate' ? '多语言翻译' : '思考与编码' }}）</div>
-      <div class="ai-process-body" ref="aiBody">{{ store.aiProcess }}</div>
     </div>
     <h3>实时日志</h3>
     <LogTerminal />
