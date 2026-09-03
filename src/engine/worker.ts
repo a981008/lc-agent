@@ -581,7 +581,13 @@ export class Worker {
         code_snapshot: code,
         verdict: ok ? 'local_pass' : 'local_fail',
         error_digest: ok ? null : String(failed[0]?.error ?? 'sandbox_error').slice(0, 200),
-        detail: { cases: cases.length, failed: failed.length, timeout: run.timeout },
+        detail: {
+          cases: cases.length,
+          failed: failed.length,
+          timeout: run.timeout,
+          // 沙盒整体失败时带上 stderr 尾部，面板/排查可直接看到 docker 报错
+          ...(run.ok ? {} : { exit: run.exitCode, stderr: String(run.stderrTail ?? '').slice(-300) }),
+        },
       });
       this.emitStep(slug, 'local_test', ok ? 'done' : 'fail', `${cases.length} 用例，失败 ${failed.length}${run.timeout ? '（沙盒超时）' : ''}`);
       if (ok) return { ok: true, code };
