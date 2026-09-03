@@ -26,6 +26,14 @@ source: v0.2 §3.3
 
 题目生命周期与 `skipped` / `accepted` 终态定义见 [03-state-machine.md](03-state-machine.md)；失败上下文的产生机制见 [06-sandbox-self-heal.md](06-sandbox-self-heal.md)。
 
+# 2.5 每日一题自动完成
+
+* 开关 `limits.dailyChallenge.enabled`（默认开，面板「运行参数」可切换）。
+* 引擎启动 90s 后首查，之后每 20min 轮询 leetcode.cn 官方 `todayRecord` GraphQL（免凭据）识别当日每日一题。
+* 触发即走完整单题流水线（生成 → 沙盒 → 提交 → 多解法 → 翻译 → 归档），**计入每日提交配额**。
+* 幂等：触发即落 `runtime_state` 键 `daily:done:<本地日期>`；已 AC 直接标记完成、付费题跳过、配额不足或状态忙碌时延后到下一轮。
+* 手动补跑：`POST /api/admin/daily-challenge`，body `{"force":true}` 可绕过忙状态立即检查。
+
 # 3. 失败熔断参数（可配置默认值）
 
 * 单题最多 **2 次**真实提交（首次 + 1 次修正）；本地 self-debug 最多 **4 轮**。

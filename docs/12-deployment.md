@@ -60,7 +60,18 @@ SECRET_KEY=至少32位的随机字符串
 
 1. **凭据**：LEETCODE_SESSION + csrftoken（leetcode.cn）
 2. **LLM**：协议 / baseUrl / 模型 / API Key
-3. **参数**：冷却区间（秒）、每日配额、翻译语言
+3. **参数**：冷却区间（秒）、每日配额、翻译语言、每日一题自动完成开关
+
+## 3.5 升级（git pull 后）
+
+```bash
+git pull && npm install --cache ./.npm-cache   # src/ 有变更时需要
+npm run web:build                              # web/ 前端有变更时必须
+./lc.sh restart
+```
+
+* **版本校验**：面板顶栏右侧版本芯片来自 `GET /api/status` 的 `uiVersion`（服务端解析 `docs/changelog.md` 最后一个版本号），应与刚升级的 changelog 一致；不一致说明前端未重建或静态资源缓存（`/` 为 no-cache，`/assets/*` 带 365d immutable 指纹，正常刷新即可）。
+* 沙盒镜像 `lc-agent-sandbox:latest` 只在不存在时构建；如 Dockerfile 有变更需 `docker build -t lc-agent-sandbox:latest sandbox/` 手动重建。
 
 > ⚠ **机房 IP 风控**：数据中心 IP 调用 LeetCode 接口比家用宽带更容易触发 CAPTCHA/限流。系统遇到 `Challenged`/`Session Expired` 会自动熔断进 `BLOCKED`（单日 CAPTCHA ≥ 2 次锁 24h）。建议：先用 `DRY_RUN=1` 跑通，再放开；冷却与配额保持默认保守值。
 
