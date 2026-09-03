@@ -106,6 +106,8 @@ export interface LimitsConfig {
   submitLang: string;
   /** AC 后翻译并提交的其他语言（langSlug 列表；空数组=禁用）。注意：每个语言都是真实提交，计入每日配额 */
   translateLangs: string[];
+  /** 每日一题自动完成：每天自动抓取官方每日一题并跑完整流水线（计入配额，受运行时间窗约束） */
+  dailyChallenge: { enabled: boolean };
   notifyWebhook: string;
   dryRun: boolean;
 }
@@ -123,6 +125,7 @@ export const LIMITS_DEFAULTS: LimitsConfig = {
   submitLang: 'javascript',
   // Go 的正确 slug 是 golang；全语言用 ['all']
   translateLangs: ['python3', 'cpp', 'java'],
+  dailyChallenge: { enabled: true },
   notifyWebhook: '',
   dryRun: false,
 };
@@ -147,6 +150,9 @@ export function mergeLimits(prev: LimitsConfig, patch?: Partial<LimitsConfig>): 
   const translateLangs = Array.isArray(p.translateLangs)
     ? p.translateLangs.filter((x): x is string => typeof x === 'string' && x.length > 0)
     : prev.translateLangs;
+  // 每日一题开关（布尔清洗，默认开启）
+  const dcIn = (p.dailyChallenge ?? {}) as { enabled?: unknown };
+  const dailyChallenge = { enabled: dcIn.enabled === undefined ? prev.dailyChallenge.enabled : Boolean(dcIn.enabled) };
   return {
     ...prev,
     ...p,
@@ -154,5 +160,6 @@ export function mergeLimits(prev: LimitsConfig, patch?: Partial<LimitsConfig>): 
     // 0 = 无限制；负数回退默认 10
     dailySubmitLimit: (() => { const q = numOr(p.dailySubmitLimit, prev.dailySubmitLimit); return q < 0 ? 10 : Math.min(1000, q); })(),
     translateLangs,
+    dailyChallenge,
   };
 }

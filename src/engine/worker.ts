@@ -167,6 +167,73 @@ export class Worker {
     }
   }
 
+  /* ============ 每日一题自动完成 ============ */
+
+  /** 今日日期（本地时区 YYYY-MM-DD） */
+  private todayKey(): string {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  /**
+   * 每日一题检查：开关开启且未完成今日题目时，自动触发完成。
+   * - 已 AC → 直接记完成；付费题/取题失败 → 记跳过（当日不再重试，避免风暴）；
+   * - 触发即记「已安排」（防 20min 轮询重复触发；跑挂了第二天自然滚动到新题）。
+   * 返回 { action, detail } 供日志与 admin 调试。
+   */
+  async checkDailyChallenge(force = false): Promise<{ action: string; detail: string }> {
+    const lim = this.limits();
+    if (!lim.dailyChallenge?.enabled) return { action: 'disabled', detail: '每日一题自动完成未开启' };
+    const key = `daily:done:${this.todayKey()}`;
+    const done = this.repo.getMeta<{ slug: string; status: string } | null>(key, null);
+    if (done) return { action: 'already', detail: `今日已完成/已安排：${done.slug}（${done.status}）` };
+    const st = this.machine.state;
+    if (!force && st !== 'IDLE' && st !== 'PAUSED') return { action: 'busy', detail: `当前状态 ${st}，稍后重试` };
+    try {
+      const daily = await this.lc.getDailyQuestion();
+      log(`每日一题（${daily.date}）：${daily.frontendId}. ${daily.title}（${daily.difficulty}）`);
+      const existing = this.repo.getProblemBySlug(daily.slug);
+      if (existing?.ac_status) {
+        this.repo.setMeta(key, { slug: daily.slug, status: 'already_accepted' });
+        return { action: 'accepted', detail: `${daily.slug} 此前已 AC，标记完成` };
+      }
+      if (existing?.paid_only) {
+        this.repo.setMeta(key, { slug: daily.slug, status: 'skipped_paid' });
+        log(`每日一题 ${daily.slug} 为付费题，跳过`, 'warn');
+        return { action: 'skipped', detail: '付费题跳过' };
+      }
+      if (this.quotaReached()) return { action: 'quota', detail: '已达每日提交配额，稍后重试' };
+      // 触发前先落库题目详情（triggerOnce 内部 fetchAndStoreProblem 会兜底，这里预热并尽早暴露付费题）
+      const row = existing ?? (await this.fetchAndStoreProblem(daily.slug));
+      if (!row) return { action: 'error', detail: '题目详情落库失败，稍后重试' };
+      if (row.ac_status) {
+        this.repo.setMeta(key, { slug: daily.slug, status: 'already_accepted' });
+        return { action: 'accepted', detail: `${daily.slug} 此前已 AC，标记完成` };
+      }
+      const r = await this.triggerOnce(daily.slug);
+      if (!r.started) return { action: 'defer', detail: `触发未开始：${r.reason ?? '未知'}` };
+      this.repo.setMeta(key, { slug: daily.slug, status: 'scheduled' });
+      log(`每日一题已自动触发：${daily.slug}`);
+      return { action: 'started', detail: daily.slug };
+    } catch (e) {
+      const msg = (e as Error).message;
+      log(`每日一题检查失败（${force ? '手动' : '定时'}）：${msg}`, 'warn');
+      return { action: 'error', detail: msg };
+    }
+  }
+
+  /** 启动每日一题轮询：90s 后首查，之后每 20min；返回停止函数 */
+  startDailyChallengeTimer(): () => void {
+    const tick = () => void this.checkDailyChallenge().catch(() => {});
+    const first = setTimeout(tick, 90_000).unref();
+    const timer = setInterval(tick, 20 * 60_000);
+    timer.unref();
+    return () => {
+      clearTimeout(first);
+      clearInterval(timer);
+    };
+  }
+
   /** Trigger Once：仅 IDLE / PAUSED；执行单题后归位（docs/03 §3） */
   async triggerOnce(manualSlug?: string): Promise<{ started: boolean; reason?: string }> {
     const st = this.machine.state;

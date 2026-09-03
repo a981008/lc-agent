@@ -16,6 +16,7 @@ function toggleAll() {
   <div class="field checks">
     <label><input type="checkbox" v-model="store.forms.cooldownEnabled" />冷却启用</label>
     <label><input type="checkbox" v-model="store.forms.dryRun" />Dry-Run（模拟判题）</label>
+    <label><input type="checkbox" v-model="store.forms.dailyChallenge" />每日一题自动完成</label>
   </div>
   <div class="field">
     <label>每日提交配额（0 = 无限制）</label>

@@ -229,6 +229,7 @@ server.listen(env.port, env.bind, () => {
     void ensureSandboxImage();
     scheduleProbe();
     shutdownCleanup.add(scheduleDailySync());
+    shutdownCleanup.add(worker.startDailyChallengeTimer());
   })();
 });
 

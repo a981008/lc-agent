@@ -55,6 +55,7 @@ export const store = reactive({
     cooldownMin: 180,
     cooldownMax: 720,
     dryRun: false,
+    dailyChallenge: true,
     quota: 10,
     quotaUnlimited: false,
     translateLangs: ['python3', 'cpp', 'java'],
@@ -153,6 +154,7 @@ export async function refreshStatus() {
       store.forms.cooldownMin = Math.round(s.limits.cooldown.minMs / 1000);
       store.forms.cooldownMax = Math.round(s.limits.cooldown.maxMs / 1000);
       store.forms.dryRun = s.limits.dryRun;
+      store.forms.dailyChallenge = s.limits.dailyChallenge?.enabled ?? true;
       store.forms.quota = s.limits.dailySubmitLimit;
       store.forms.quotaUnlimited = s.limits.dailySubmitLimit === 0;
       store.forms.translateLangs = (s.limits.translateLangs || []).map((l) => (l === 'go' ? 'golang' : l));
@@ -322,6 +324,7 @@ export async function saveLimits() {
       maxMs: Math.round(cdMax * 1000),
     },
     dryRun: store.forms.dryRun,
+    dailyChallenge: { enabled: Boolean(store.forms.dailyChallenge) },
     dailySubmitLimit: store.forms.quotaUnlimited ? 0 : (Number(store.forms.quota) || 10),
     translateLangs: [...store.forms.translateLangs],
   };

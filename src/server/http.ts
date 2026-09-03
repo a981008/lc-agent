@@ -269,6 +269,11 @@ export function buildApp(ctx: Ctx): express.Express {
 
   /* ---------- 运维 ---------- */
 
+  app.post('/api/admin/daily-challenge', async (req, res) => {
+    const force = Boolean((req.body as { force?: boolean } | undefined)?.force);
+    res.json(await ctx.worker.checkDailyChallenge(force));
+  });
+
   app.post('/api/admin/sync-problems', async (_req, res) => {
     res.json({ ok: true, hint: '同步已在后台执行' });
     void ctx.syncProblems().catch((e) => log(`题库同步失败：${(e as Error).message}`, 'error'));

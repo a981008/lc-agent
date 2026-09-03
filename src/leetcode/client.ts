@@ -275,6 +275,42 @@ export class LeetCodeClient {
       .map((l) => ({ slug: l.name }));
   }
 
+  /** 今日官方每日一题（leetcode.cn todayRecord；公开接口无需凭据） */
+  async getDailyQuestion(): Promise<{ slug: string; frontendId: string; title: string; difficulty: string; date: string }> {
+    const data = await this.graphql<{
+      todayRecord: Array<{
+        date: string;
+        question: { titleSlug: string; questionFrontendId: string; title: string; translatedTitle: string | null; difficulty: string } | null;
+      } | null>;
+    }>(
+      `query dailyQuestionRecord {
+         todayRecord {
+           date
+           question {
+             titleSlug
+             questionFrontendId
+             title
+             translatedTitle
+             difficulty
+           }
+         }
+       }`,
+      'dailyQuestionRecord',
+      {},
+      false
+    );
+    const rec = (data.todayRecord ?? []).find(Boolean);
+    const q = rec?.question;
+    if (!q?.titleSlug) throw new Error('每日一题接口未返回题目');
+    return {
+      slug: q.titleSlug,
+      frontendId: q.questionFrontendId,
+      title: q.translatedTitle || q.title,
+      difficulty: normalizeDifficulty(q.difficulty),
+      date: rec?.date ?? new Date().toISOString().slice(0, 10),
+    };
+  }
+
   /* ---------------- 提交与判题（需凭据；docs/06 §1 提交环节） ---------------- */
 
   async submit(slug: string, questionId: string, code: string, lang: string): Promise<string> {
