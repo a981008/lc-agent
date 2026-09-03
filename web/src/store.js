@@ -74,8 +74,11 @@ function resetStages() {
 
 /* ---------------- 事件处理 ---------------- */
 
+if (typeof window !== 'undefined') (window).__lcStore = store;
+
 export function appendLog(level, text) {
   store.logs.push({ id: ++store.logSeq, level, text });
+  // 环形缓冲 800 条（LogTerminal 按「尾部窗口」分页渲染，避免 DOM 无限变大）*/
   if (store.logs.length > 800) store.logs.splice(0, store.logs.length - 800);
 }
 
