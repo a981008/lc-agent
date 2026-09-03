@@ -30,6 +30,7 @@ source: v0.2 §7
 | v0.20 | **排查增强**：`local_fail` 尝试记录的 detail 补充 `exit` 与 `stderr` 尾部——沙盒整体失败（docker 报错/超时/崩溃）时面板与库里可直接看到根因，不再只有笼统的 `sandbox_error` |
 | v0.21 | **题目列表一键跑题**：每行新增「▶ 跑这题」按钮（Trigger Once，等价手输 slug）；仅 IDLE/PAUSED 可点（忙时按钮禁用，后端 409 兜底）；付费题禁用；当前运行中的题整行高亮 + 按钮变「⏳ 运行中」 |
 | v0.22 | **LLM 网络错误可诊断**：`fetch failed` 展开底层 cause 链（`ENOTFOUND`/`ECONNREFUSED`/`ETIMEDOUT`…）写进日志与尝试记录，服务器上不再只有无信息量的笼统报错 |
+| v0.23 | **LLM 请求自动重试**：网络级瞬时抖动（ENOTFOUND/ECONNRESET/套接字中断）自动重试 1 次（间隔 2s）——单次抖动不再废掉整题的生成与本地预检；超时/中断不重试 |
 
 ---
 

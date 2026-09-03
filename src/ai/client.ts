@@ -75,14 +75,24 @@ export class AiClient {
       body = JSON.stringify({ model: cfg.model, messages, temperature, max_tokens: maxTokens });
     }
 
-    let res: Response;
-    try {
-      res = await fetch(url, { method: 'POST', headers, body, signal: AbortSignal.timeout(420_000) });
-    } catch (e) {
+    // 网络级瞬时抖动（ENOTFOUND/ECONNRESET/套接字中断…）自动重试 1 次；超时/中断不重试（420s 已经很宽）
+    let res: Response | null = null;
+    let lastErr: unknown = null;
+    for (let attempt = 1; attempt <= 2 && !res; attempt++) {
+      try {
+        res = await fetch(url, { method: 'POST', headers, body, signal: AbortSignal.timeout(420_000) });
+      } catch (e) {
+        lastErr = e;
+        const name = (e as Error).name;
+        if (name === 'AbortError' || name === 'TimeoutError') break;
+        if (attempt < 2) await new Promise((r) => setTimeout(r, 2_000));
+      }
+    }
+    if (!res) {
       // fetch failed 本身没有信息量；展开 cause 链拿到真实原因（ENOTFOUND/ECONNREFUSED/ETIMEDOUT…）
-      const cause = (e as { cause?: { code?: string; message?: string } } | null)?.cause;
+      const cause = (lastErr as { cause?: { code?: string; message?: string } } | null)?.cause;
       const detail = cause?.code ?? cause?.message;
-      throw new Error(`LLM 请求失败：${(e as Error).message}${detail ? `（${detail}）` : ''}`);
+      throw new Error(`LLM 请求失败：${(lastErr as Error).message}${detail ? `（${detail}）` : ''}`);
     }
     const text = await res.text();
     if (!res.ok) throw new Error(`LLM HTTP ${res.status}：${text.slice(0, 300)}`);
