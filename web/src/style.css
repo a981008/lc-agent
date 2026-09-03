@@ -122,7 +122,10 @@ tr:hover td { background: #1b2230; }
 .diff-Easy { color: var(--green); }
 .diff-Medium { color: var(--yellow); }
 .diff-Hard { color: var(--red); }
-td.actions button { padding: 2px 8px; font-size: 12px; }
+td.run-btn { background: #2563eb; border-color: #2563eb; color: #fff; }
+.run-btn:hover:not(:disabled) { background: #1d4ed8; }
+.row-running > td { background: rgba(37, 99, 235, 0.08); }
+.actions button { padding: 2px 8px; font-size: 12px; }
 .pager { display: flex; gap: 12px; align-items: center; margin-top: 8px; color: var(--muted); }
 
 .tabs { display: flex; gap: 4px; margin-bottom: 10px; }

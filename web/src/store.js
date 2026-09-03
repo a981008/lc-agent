@@ -213,6 +213,17 @@ export async function doHalt() {
   catch (e) { if (!e.unauthorized) appendLog('error', `终止失败：${e.message}`); }
 }
 
+/** 题目列表「跑这题」：等价于按 slug 触发 Trigger Once（忙时后端 409，原因进日志） */
+export async function runProblem(slug) {
+  try {
+    await api('/control/trigger-once', { method: 'POST', body: JSON.stringify({ slug }) });
+    appendLog('info', `已从题目列表触发：${slug}`);
+    refreshStatus();
+  } catch (e) {
+    if (!e.unauthorized) appendLog('error', `触发 ${slug} 失败：${e.message}`);
+  }
+}
+
 export async function doTrigger() {
   const slug = store.forms.manualSlug.trim();
   try {
@@ -356,7 +367,7 @@ export function pageNext() { store.page++; loadProblems(); }
 export const actions = {
   setConfigTab, setPageSize,
   initToken, submitToken, logout, refreshStatus,
-  doResume, doPause, doHalt, doTrigger,
+  doResume, doPause, doHalt, doTrigger, runProblem,
   saveStrategy, saveCookie, saveLlm, saveLimits, syncProblems,
   loadProblems, loadSolutions, viewAttempts, viewSolution,
   switchTab, pagePrev, pageNext,
