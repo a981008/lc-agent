@@ -96,7 +96,7 @@ export class StateMachine {
     this.lastStateChangeReason = reason;
     this.persist();
     log(`状态迁移 ${from} → ${next}（${reason}）`);
-    emit('state_change', { from, to: next, reason });
+    emit('state_change', { from, to: next, reason, slug: this.currentProblemSlug ?? null });
   }
 
   /* ---------- 崩溃恢复（docs/02 §3） ---------- */

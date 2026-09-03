@@ -112,6 +112,14 @@ export function handleEvent(e) {
       break;
     case 'state_change': {
       const prev = store.status?.state;
+      // WS 事件即时反映状态变化（不等 REST 往返）；payload.to 是服务端状态机的权威值
+      if (e.payload?.to && store.status) {
+        store.status = { ...store.status, state: e.payload.to };
+        if (e.payload.to === 'IN_PROGRESS' && (e.payload.slug || e.payload.detail)) {
+          store.currentProblem = `当前题目：${e.payload.slug ?? e.payload.detail}`;
+        }
+        if (e.payload.to !== 'IN_PROGRESS') store.currentProblem = '（当前无任务）';
+      }
       refreshStatus();
       // 一题结束（IN_PROGRESS → 空闲/冷却）：刷新题目列表（尝试数、三态状态即时更新）
       if (prev === 'IN_PROGRESS' && (e.payload?.to === 'IDLE' || e.payload?.to === 'COOLING')) {
