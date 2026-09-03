@@ -75,7 +75,6 @@ const worker = new Worker(repo, lc, ai, sandbox, machine, budget, loadLimits);
 /* ---------- 题库同步（公开接口，首次启动与每日增量） ---------- */
 
 let syncing = false;
-let lastSyncDay = '';
 async function syncProblems(): Promise<void> {
   if (syncing) return;
   syncing = true;
@@ -87,10 +86,24 @@ async function syncProblems(): Promise<void> {
       if (synced % 500 === 0) log(`题库同步进度 ${synced}/${total}`);
     });
     log(`题库同步完成：共 ${n} 题（本进程内去重后落库）`);
-    lastSyncDay = new Date().toISOString().slice(0, 10);
+    repo.setMeta('problems:lastSyncAt', Date.now());
   } finally {
     syncing = false;
   }
+}
+/** 每晚本地 0 点定时同步；返回停止函数（优雅停机时调用） */
+function scheduleDailySync(): () => void {
+  const arm = () => {
+    const now = new Date();
+    const next = new Date(now);
+    next.setHours(24, 0, 0, 0); // 下一个本地 0 点
+    return setTimeout(() => {
+      void syncProblems().catch((e) => log(`题库同步失败：${(e as Error).message}`, 'error'));
+      t = arm();
+    }, next.getTime() - now.getTime());
+  };
+  let t = arm();
+  return () => clearTimeout(t);
 }
 // listAllProblems 直接返回数据，需要在此处统一落库
 const origListAll = lc.listAllProblems.bind(lc);
@@ -194,24 +207,37 @@ server.listen(env.port, env.bind, () => {
         void worker.kickLoop();
       }
     }
-    // 题库为空或跨天 → 后台同步
+    // 题库为空 → 立即后台同步；否则仅当距上次成功同步 ≥ 24h 才补一次（重启不再触发无谓全量同步）
     const { total } = repo.counts();
-    if (total === 0 || lastSyncDay !== new Date().toISOString().slice(0, 10)) {
+    const lastSyncAt = repo.getMeta<number>('problems:lastSyncAt', 0);
+    if (total === 0) {
       void syncProblems().catch((e) => log(`题库同步失败：${(e as Error).message}`, 'error'));
+    } else if (Date.now() - lastSyncAt >= 86_400_000) {
+      log('题库距上次同步已超过 24h，1 分钟后后台补同步…');
+      setTimeout(() => {
+        void syncProblems().catch((e) => log(`题库同步失败：${(e as Error).message}`, 'error'));
+      }, 60_000);
+    } else {
+      log(`题库共 ${total} 题，上次同步 ${new Date(lastSyncAt).toLocaleString('zh-CN')}（每晚 0 点自动同步）`);
     }
     void ensureSandboxImage();
     scheduleProbe();
+    shutdownCleanup.add(scheduleDailySync());
   })();
 });
 
 /* ---------- 优雅停机（docs/02 §3） ---------- */
 
+const shutdownCleanup = new Set<() => void>();
 let shuttingDown = false;
 async function shutdown(signal: string): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
   log(`收到 ${signal}，开始优雅停机（软暂停语义：等待当前题结束，最长 120s）…`);
   machine.requestHalt('sigterm');
+  for (const fn of shutdownCleanup) {
+    try { fn(); } catch { /* ignore */ }
+  }
   const deadline = Date.now() + 120_000;
   while (machine.state === 'IN_PROGRESS' && Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 1000));
