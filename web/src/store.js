@@ -95,6 +95,7 @@ export function markStage(p) {
     if (p.status !== 'delta') store.stages[p.stage] = p.status;
   }
   if (p.status === 'delta') {
+    if (p.stage === 'translate') return; // 翻译过程不进 AI 解题过程面板
     store.aiProcess += (store.aiProcess ? '\n' : '') + p.detail;
     store.aiProcessStage = p.stage;
     return;

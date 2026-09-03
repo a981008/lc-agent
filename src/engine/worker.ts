@@ -933,19 +933,8 @@ export class Worker {
       for (let tries = 0; tries < 2 && !passed; tries++) {
         try {
           if (tries === 0) {
-            let tBuf = '';
-            let tLast = 0;
-            const onDelta = (d: string) => {
-              tBuf += d;
-              const now = Date.now();
-              if (now - tLast >= 400 || tBuf.length >= 800) {
-                this.emitStep(slug, 'translate', 'delta', tBuf);
-                tBuf = '';
-                tLast = now;
-              }
-            };
-            const r = await this.ai.translateSolution({ ...this.describeCtx(q) }, acCode, lang, tpl.code, onDelta);
-            if (tBuf) this.emitStep(slug, 'translate', 'delta', tBuf);
+            // 翻译过程不流式展示（AI 解题过程面板仅显示生成阶段）；完成后由状态灯汇报结果
+            const r = await this.ai.translateSolution({ ...this.describeCtx(q) }, acCode, lang, tpl.code);
             calls++;
             code = r.code;
           } else {
