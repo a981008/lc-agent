@@ -43,6 +43,7 @@ source: v0.2 §7
 | v0.33 | **构建健壮性**：`npm run web:build` 自动先安装 `web/` 依赖再构建——git pull 拉到新前端依赖（katex/highlight.js 等）后直接构建不再报 `Rollup failed to resolve import` |
 | v0.34 | **UI 对齐 LeetCode 风格 + 双主题**：全部颜色改为 CSS 令牌，品牌橙 `#FFA116` 点缀（按钮/链接/页签/选中态），LC 三色难度（绿/金/红）；顶栏新增主题切换 ☀️ 浅色 / 🌙 深色 / 💻 跟随系统（`prefers-color-scheme` 实时响应，localStorage 持久化，首屏内联脚本防闪烁）；语法高亮配色改为内置双主题（One-Dark/One-Light），去掉静态 github-dark |
 | v0.35 | **静态资源缓存策略修复 + 版本号显示**：`/assets/*`（内容哈希文件名）长缓存 `immutable`，入口 `index.html` 改 `no-cache` 每次回源——部署后普通刷新即可见新界面，不再出现 304 旧页面；`/api/status` 新增 `uiVersion`（取 changelog 最新版本），顶栏显示版本徽章，部署是否生效一眼可辨 |
+| v0.36 | **白屏自愈**：入口页内联自检——页面加载 2.5s 后 `#app` 仍为空（旧入口引用已下线的哈希资源导致 404 白屏）则自动整页刷新一次拿新入口（sessionStorage 防循环）；已缓存的旧页面用户无需手动强刷 |
 
 ---
 

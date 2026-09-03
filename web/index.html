@@ -11,6 +11,20 @@
         var d = p === 'dark' || (p === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
         document.documentElement.dataset.theme = d ? 'dark' : 'light';
       } catch (e) { document.documentElement.dataset.theme = 'dark'; }
+      // 自愈：部署后旧 index.html 引用的资源可能已 404（Vue 挂不上 → 白屏），强制刷新一次拿新入口
+      window.addEventListener('load', function () {
+        setTimeout(function () {
+          var app = document.getElementById('app');
+          if (app && app.children.length === 0) {
+            if (!sessionStorage.getItem('lc-boot-reload')) {
+              sessionStorage.setItem('lc-boot-reload', '1');
+              location.reload();
+            }
+          } else {
+            sessionStorage.removeItem('lc-boot-reload');
+          }
+        }, 2500);
+      });
     </script>
   </head>
   <body>
