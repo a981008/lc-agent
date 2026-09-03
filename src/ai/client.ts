@@ -56,7 +56,8 @@ export class AiClient {
     this.budget.preCall();
     const protocol = cfg.protocol === 'anthropic' ? 'anthropic' : 'openai';
     // 推理模型的思考块消耗输出预算且不可见，Anthropic 协议下为思考预留余量
-    const maxTokens = (opts?.maxTokens ?? 2400) + (protocol === 'anthropic' ? 12_000 : 0);
+    // 推理模型（glm 系）思考会消耗输出预算：两种协议都预留思考余量
+    const maxTokens = (opts?.maxTokens ?? 2400) + 12_000;
     const temperature = opts?.temperature ?? 0.2;
 
     let url: string;
@@ -76,14 +77,14 @@ export class AiClient {
 
     let res: Response;
     try {
-      res = await fetch(url, { method: 'POST', headers, body, signal: AbortSignal.timeout(180_000) });
+      res = await fetch(url, { method: 'POST', headers, body, signal: AbortSignal.timeout(420_000) });
     } catch (e) {
       throw new Error(`LLM 请求失败：${(e as Error).message}`);
     }
     const text = await res.text();
     if (!res.ok) throw new Error(`LLM HTTP ${res.status}：${text.slice(0, 300)}`);
     let data: {
-      choices?: Array<{ message?: { content?: string } }>;
+      choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>;
       content?: Array<{ type?: string; text?: string }>;
       usage?: { prompt_tokens?: number; completion_tokens?: number; input_tokens?: number; output_tokens?: number };
       error?: { message?: string };
@@ -108,9 +109,13 @@ export class AiClient {
       }
     } else {
       content = data.choices?.[0]?.message?.content ?? '';
+      // 推理模型在 OpenAI 兼容接口下可能只输出 reasoning_content（思考占用全部预算、content 为空）
+      if (!String(content).trim() && data.choices?.[0]?.message?.reasoning_content) {
+        content = data.choices[0].message.reasoning_content;
+      }
       usage = data.usage ?? null;
     }
-    if (!content.trim()) throw new Error('LLM 返回空内容（可能输出预算被思考耗尽）');
+    if (!content.trim()) throw new Error('LLM 返回空内容（可能输出预算被思考耗尽：推理模型建议使用 anthropic 协议或加大 maxTokens）');
     this.budget.record(usage, body.length, content.length);
     return { content, usage };
   }
