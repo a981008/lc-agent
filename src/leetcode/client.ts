@@ -31,6 +31,7 @@ export interface LcQuestion {
   exampleTestcases: string;
   sampleTestCase: string;
   codeSnippets: Array<{ lang: string; langSlug: string; code: string }>;
+  topicTags?: Array<{ name: string; translatedName: string | null; slug: string } | null>;
 }
 
 export interface LcVerdict {
@@ -238,6 +239,7 @@ export class LeetCodeClient {
              exampleTestcases
              sampleTestCase
              codeSnippets { lang langSlug code }
+             topicTags { name translatedName slug }
            }
          }`,
         'questionDetail',
@@ -250,6 +252,7 @@ export class LeetCodeClient {
     if (q.isPaidOnly) throw new Error(`Premium 锁卡题不应被调度：${slug}`);
     return {
       ...q,
+      topicTags: (q.topicTags ?? []).filter((t): t is NonNullable<typeof t> => Boolean(t)),
       paidOnly: Boolean(q.isPaidOnly),
       difficulty: normalizeDifficulty(q.difficulty),
     };

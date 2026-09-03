@@ -3,6 +3,13 @@ import { computed } from 'vue';
 import { store, actions, lcProblemUrl } from '../store.js';
 
 const totalPages = computed(() => Math.max(1, Math.ceil((store.problems.total ?? 0) / store.pageSize)));
+
+// 三态刷题状态：已解答（AC）→ 尝试过（有尝试未 AC）→ 待完成
+function statusOf(p) {
+  if (p.ac_status) return { key: 'solved', label: '已解答' };
+  if (p.attempts_count > 0) return { key: 'attempted', label: '尝试过' };
+  return { key: 'todo', label: '待完成' };
+}
 // 仅 IDLE/PAUSED 可手动触发（后端 trigger-once 同规则）
 const canRun = computed(() => ['IDLE', 'PAUSED'].includes(store.status?.state ?? ''));
 const currentSlug = computed(() => store.status?.currentSlug ?? null);
@@ -19,7 +26,7 @@ const currentSlug = computed(() => store.status?.currentSlug ?? null);
         <td>{{ p.slug }}</td>
         <td><a class="lc-link" :href="lcProblemUrl(p.slug)" target="_blank" rel="noopener" :title="'在 LeetCode 打开 ' + p.slug">{{ p.title_cn || p.title || p.slug }} ↗</a></td>
         <td :class="'diff-' + (p.difficulty ?? '')">{{ p.difficulty ?? '' }}</td>
-        <td>{{ p.paid_only ? '🔒' : '' }} {{ p.ac_status ? '✅ AC' : p.lifecycle }}</td>
+        <td><span :class="['pstatus', 'pstatus-' + statusOf(p).key]">{{ p.paid_only ? '🔒' : '' }} {{ statusOf(p).label }}</span></td>
         <td>{{ p.attempts_count }}</td>
         <td class="actions">
           <button

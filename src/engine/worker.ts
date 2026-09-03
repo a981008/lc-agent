@@ -20,8 +20,7 @@ import type { LimitsConfig } from '../config.js';
 export interface StrategyConfig {
   mode: 'sequential' | 'random' | 'tag';
   difficulty?: string[];
-  tag?: string;
-  manualSlug?: string; // 扩展：定向验证用
+  tag?: string; // LC 知识点 slug（array/hash-table/linked-list…）
 }
 
 const STRATEGY_DEFAULT: StrategyConfig = { mode: 'sequential' };
@@ -140,7 +139,8 @@ export class Worker {
   }
 
   setStrategy(s: Partial<StrategyConfig>): StrategyConfig {
-    const next = { ...this.getStrategy(), ...s };
+    const next = { ...this.getStrategy(), ...s } as StrategyConfig;
+    delete (next as { manualSlug?: string }).manualSlug; // 旧字段清理
     this.repo.setMeta('strategy', next);
     log(`策略已更新（下一题生效）：${JSON.stringify(next)}`);
     return next;
@@ -168,8 +168,18 @@ export class Worker {
       return { started: false, reason: `当前状态 ${st} 不允许 Trigger Once（仅 IDLE/PAUSED）` };
     }
     const returnTo: 'IDLE' | 'PAUSED' = st === 'PAUSED' ? 'PAUSED' : 'IDLE';
-    const strategy = manualSlug ? { ...this.getStrategy(), manualSlug } : this.getStrategy();
-    const pick = await this.pickProblem(strategy, true);
+    const base = this.getStrategy();
+    // 跑单题：指定 slug 直跑；未指定 → 随机一题（仍受难度/知识点过滤约束）
+    const strategy: StrategyConfig = manualSlug
+      ? { ...base, mode: 'random', tag: undefined }
+      : { ...base, mode: 'random' };
+    const pick = manualSlug
+      ? this.repo.getProblemBySlug(manualSlug) ??
+        (await this.fetchAndStoreProblem(manualSlug))
+      : await this.pickProblem(strategy, true);
+    if (pick && (pick.paid_only || pick.ac_status)) {
+      return { started: false, reason: `${pick.slug} 已解答或为付费题，不可跑` };
+    }
     if (!pick) return { started: false, reason: '没有可运行的题目（题库未同步或策略过滤过严）' };
     if (this.repo.submitCountToday() >= this.limits().dailySubmitLimit) {
       return { started: false, reason: '已达每日提交配额' };
@@ -262,6 +272,24 @@ export class Worker {
     return s <= e ? nowMin < s || nowMin >= e : nowMin < s && nowMin >= e;
   }
 
+  /** 按 slug 在线拉取题目元数据并入库（题目列表点选「跑这题」时题目可能尚未同步） */
+  private async fetchAndStoreProblem(slug: string): Promise<ProblemRow | null> {
+    const q = await this.lc.getQuestion(slug);
+    this.repo.upsertProblems([
+      {
+        problem_id: q.questionFrontendId,
+        frontend_question_id: q.questionFrontendId,
+        slug: q.titleSlug,
+        title: q.title,
+        title_cn: q.translatedTitle,
+        difficulty: q.difficulty,
+        tags: JSON.stringify((q.topicTags ?? []).flatMap((t) => (t?.slug ? [t.slug] : []))),
+        paid_only: q.paidOnly ? 1 : 0,
+      },
+    ]);
+    return this.repo.getProblemBySlug(slug) ?? null;
+  }
+
   private async pickProblem(strategy: StrategyConfig, forTrigger: boolean): Promise<ProblemRow | null> {
     // 优先级 1：interrupted（崩溃恢复，docs/02 §3）
     const interrupted = this.repo.getMeta<{ slug: string } | null>('current', null);
@@ -283,29 +311,7 @@ export class Worker {
         return dueRow;
       }
     }
-    // 优先级 3：手动指定（定向验证扩展）
-    if (strategy.manualSlug) {
-      const row = this.repo.getProblemBySlug(strategy.manualSlug);
-      if (row) {
-        if (row.paid_only || row.ac_status) return null;
-        return row;
-      }
-      const q = await this.lc.getQuestion(strategy.manualSlug);
-      this.repo.upsertProblems([
-        {
-          problem_id: q.questionFrontendId,
-          frontend_question_id: q.questionFrontendId,
-          slug: q.titleSlug,
-          title: q.title,
-          title_cn: q.translatedTitle,
-          difficulty: q.difficulty,
-          tags: '[]',
-          paid_only: q.paidOnly ? 1 : 0,
-        },
-      ]);
-      return this.repo.getProblemBySlug(strategy.manualSlug) ?? null;
-    }
-    // 优先级 4：按模式取题
+    // 优先级 3：按模式取题
     const rows = this.repo.pickProblems(strategy.mode === 'tag' ? 'tag' : strategy.mode, {
       difficulty: strategy.difficulty,
       tag: strategy.tag,
