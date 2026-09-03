@@ -431,6 +431,7 @@ ${alt.code}
     onDelta?: (delta: string) => void
   ): Promise<{ code: string; usage: unknown }> {
     const user = `把下面已 AC 的 JavaScript 解法翻译为 ${langSlug}。
+注意 ${langSlug} 的性能特征与 JavaScript 不同（如 Python 慢 10-50 倍）：翻译时优先保证同一算法在该语言下常数足够小（用该语言惯用法替代逐行直译），必要时选用渐进更优的等价实现，避免超时（TLE）。
 
 题目（${ctx.frontendId}. ${ctx.title}）：签名以模板为准。
 

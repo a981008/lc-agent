@@ -608,8 +608,8 @@ export class Worker {
         submitsUsed += alternatives.submitsUsed;
         summaryParts.push(...alternatives.summaries);
         // 翻译为其他语言并提交（docs/06 §5）：全部真实提交、计入每日配额；失败不阻塞归档
-        const codes = await this.translateAndSubmit(q, slug, code, llmCalls, summaryParts);
-        await this.archive(q, ctx, slug, code, verdict, summaryParts.join('；'), codes, alternatives.accepted);
+        const tr = await this.translateAndSubmit(q, slug, code, llmCalls, summaryParts);
+        await this.archive(q, ctx, slug, code, verdict, summaryParts.join('；'), tr.codes, alternatives.accepted, tr.tled);
         return;
       }
 
@@ -905,11 +905,12 @@ export class Worker {
     acCode: string,
     llmCalls: number,
     summaryParts: string[]
-  ): Promise<Record<string, string>> {
+  ): Promise<{ codes: Record<string, string>; tled: Record<string, string> }> {
     const lim = this.limits();
     const codes: Record<string, string> = { [lim.submitLang]: acCode };
+    const tled: Record<string, string> = {};
     const langs = resolveTranslateTargets(lim.translateLangs ?? [], q, lim.submitLang);
-    if (!langs.length) return codes;
+    if (!langs.length) return { codes, tled };
 
     this.emitStep(slug, 'translate', 'start', langs.join(' / '));
     let calls = llmCalls;
@@ -1010,11 +1011,20 @@ export class Worker {
           summaryParts.push(`${langLabel(lang)} 翻译后同样 AC`);
         }
       }
-      if (!passed) summaryParts.push(`${langLabel(lang)}: ${lastKind || '未完成'}（未通过，不阻塞）`);
+      if (!passed) {
+        // TLE 的翻译解法本身是正确的（逻辑对、仅超时限）——保留并进题解标注，不静默丢弃
+        if (lastKind === 'TLE' && code?.trim()) {
+          tled[lang] = code;
+          summaryParts.push(`${langLabel(lang)}: 正确但 TLE（已标注进题解，需该语言下更优实现）`);
+          log(`[${lang}] 翻译解法正确但 TLE，保留标注`, 'warn');
+        } else {
+          summaryParts.push(`${langLabel(lang)}: ${lastKind || '未完成'}（未通过，不阻塞）`);
+        }
+      }
     }
-    log(`多语言翻译完成：${acCount}/${langs.length} 个语言 AC`);
-    this.emitStep(slug, 'translate', acCount === langs.length ? 'done' : 'fail', `${acCount}/${langs.length} AC`);
-    return codes;
+    log(`多语言翻译完成：${acCount}/${langs.length} 个语言 AC${Object.keys(tled).length ? `（${Object.keys(tled).length} 个 TLE 已标注）` : ''}`);
+    this.emitStep(slug, 'translate', acCount === langs.length ? 'done' : 'fail', `${acCount}/${langs.length} AC${Object.keys(tled).length ? ` +${Object.keys(tled).length} TLE` : ''}`);
+    return { codes, tled };
   }
 
   /** 构造给 AI 的最小题目上下文（翻译阶段不重复传整段题面，签名即可） */
@@ -1037,7 +1047,8 @@ export class Worker {
     verdict: { runtimeMs: number | null; runtimePercentile: number | null; memoryPercentile: number | null },
     summary: string,
     codes?: Record<string, string>,
-    alternatives?: Array<{ approach: string; code: string }>
+    alternatives?: Array<{ approach: string; code: string }>,
+    tledCodes?: Record<string, string>
   ): Promise<void> {
     try {
       this.emitStep(slug, 'archive', 'start');
@@ -1045,7 +1056,7 @@ export class Worker {
         runtimeMs: verdict.runtimeMs,
         runtimePercentile: verdict.runtimePercentile,
         memoryPercentile: verdict.memoryPercentile,
-      }, summary, codes, alternatives);
+      }, summary, codes, alternatives, tledCodes);
       this.emitStep(slug, 'archive', 'done');
     } catch (e) {
       this.emitStep(slug, 'archive', 'fail', (e as Error).message);

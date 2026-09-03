@@ -94,7 +94,8 @@ export class Archiver {
     perf: ArchivePerf,
     attemptSummary: string,
     extraCodes?: Record<string, string>, // langSlug → code（含主语言 javascript）
-    alternatives?: Array<{ approach: string; code: string }> // 已 AC 的补充解法（多解法小节）
+    alternatives?: Array<{ approach: string; code: string }>, // 已 AC 的补充解法（多解法小节）
+    tledCodes?: Record<string, string> // 翻译后正确但 TLE 的解法（langSlug → code；页签标注 TLE）
   ): Promise<{ file: string; commit: string | null; pushed: boolean }> {
     let markdown: string;
     try {
@@ -128,6 +129,12 @@ export class Archiver {
     if (codes['JavaScript']) ordered['JavaScript'] = codes['JavaScript']!;
     for (const k of Object.keys(codes).sort()) {
       if (k !== 'JavaScript') ordered[k] = codes[k]!;
+    }
+    // 正确但 TLE 的翻译解法：页签标注（TLE），排在已 AC 语言之后
+    if (tledCodes) {
+      for (const [lang, c] of Object.entries(tledCodes)) {
+        ordered[`${langLabel(lang)}（TLE）`] = c;
+      }
     }
     markdown = withLcLink(markdown, slug, `${ctx.frontendId}. ${ctx.title}`);
     let altSection = '';

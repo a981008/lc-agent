@@ -91,7 +91,8 @@ function renderAcTabs(jsonText) {
   const panes = langs
     .map((l, i) => {
       const code = codes[l] ?? '';
-      const hl = LANG_TO_HLJS[l];
+      // 页签 key 可能带「（TLE）」等标注后缀：剥掉后查高亮语言映射，保证标注页签代码仍高亮
+      const hl = LANG_TO_HLJS[l] ?? LANG_TO_HLJS[l.replace(/[（(].*$/, '').trim()];
       let body;
       try {
         body = hl ? hljs.highlight(code, { language: hl, ignoreIllegals: true }).value : escapeHtml(code);
