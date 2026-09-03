@@ -220,7 +220,22 @@ tr:hover td { background: var(--hover-bg); }
 .lang-chip input { accent-color: var(--accent); margin: 0; }
 .lang-chip:has(input:disabled) { opacity: 0.45; cursor: not-allowed; }
 
-/* 题目三态状态徽章 */
+/* 会员题徽章 */
+.paid-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  vertical-align: 1px;
+  color: #b8860b;
+  background: rgba(255, 200, 60, 0.14);
+  border: 1px solid rgba(255, 200, 60, 0.35);
+}
+:root[data-theme='light'] .paid-badge { color: #8a6508; background: rgba(255, 193, 7, 0.15); border-color: rgba(255, 193, 7, 0.5); }
+
+/* 题目三态状态徽章 *//* 题目三态状态徽章 */
 .pstatus { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; }
 .pstatus-solved { background: var(--ok-soft); color: var(--green); }
 .pstatus-attempted { background: var(--warn-soft); color: var(--yellow); }

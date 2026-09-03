@@ -171,6 +171,7 @@ export class Repository {
     difficulty?: string[]; // Easy/Medium/Hard
     status?: 'todo' | 'attempted' | 'solved'; // 三态刷题状态
     tag?: string; // LC 知识点 slug（JSON 数组 LIKE）
+    paid?: 0 | 1; // 会员题筛选：1=仅会员题，0=仅免费题
   }): { items: ProblemRow[]; total: number } {
     const pageSize = Math.min(opts.pageSize ?? 50, 200);
     const page = Math.max(opts.page ?? 1, 1);
@@ -200,6 +201,8 @@ export class Repository {
       conds.push(`tags LIKE ?`);
       params.push(`%"${opts.tag}"%`);
     }
+    if (opts.paid === 1) conds.push('paid_only = 1');
+    else if (opts.paid === 0) conds.push('paid_only = 0');
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
     const total = (this.db.prepare(`SELECT COUNT(*) AS c FROM problem_records ${where}`).get(...params) as { c: number }).c;
     const items = this.db

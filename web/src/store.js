@@ -33,7 +33,7 @@ export const store = reactive({
   tab: 'problems',
   problems: { items: [], total: 0 },
   languages: [],
-  pFilters: { q: '', status: '', difficulty: [], tag: '' },
+  pFilters: { q: '', status: '', difficulty: [], tag: '', paid: '' },
   sFilters: { q: '', difficulty: [], tag: '' },
   page: 1,
   pageSize: 20,
@@ -347,6 +347,7 @@ export async function loadProblems() {
     if (f.status) qs.set('status', f.status);
     if (f.difficulty?.length) qs.set('difficulty', f.difficulty.join(','));
     if (f.tag) qs.set('tag', f.tag);
+    if (f.paid === '1' || f.paid === '0') qs.set('paid', f.paid);
     const r = await api(`/problems?page=${store.page}&pageSize=${store.pageSize}&${qs}`);
     // 数据变少（如重新同步）后当前页可能越界：回退到最后一页
     const maxPage = Math.max(1, Math.ceil(r.total / store.pageSize));

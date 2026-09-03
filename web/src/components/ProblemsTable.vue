@@ -44,7 +44,12 @@ const currentSlug = computed(() => store.status?.currentSlug ?? null);
       <option value="">分类：全部</option>
       <option v-for="t in TAG_OPTIONS" :key="t[0]" :value="t[0]">{{ t[1] }}</option>
     </select>
-    <button class="f-btn" @click="store.pFilters = { q: '', status: '', difficulty: [], tag: '' }; actions.applyPFilters()">重置</button>
+    <select v-model="store.pFilters.paid" @change="actions.applyPFilters">
+      <option value="">会员题：全部</option>
+      <option value="1">仅会员题</option>
+      <option value="0">仅免费题</option>
+    </select>
+    <button class="f-btn" @click="store.pFilters = { q: '', status: '', difficulty: [], tag: '', paid: '' }; actions.applyPFilters()">重置</button>
   </div>
   <table>
     <thead>
@@ -53,9 +58,9 @@ const currentSlug = computed(() => store.status?.currentSlug ?? null);
     <tbody>
       <tr v-for="p in store.problems.items" :key="p.slug" :class="{ 'row-running': currentSlug === p.slug }">
         <td>{{ p.slug }}</td>
-        <td><a class="lc-link" :href="lcProblemUrl(p.slug)" target="_blank" rel="noopener" :title="'在 LeetCode 打开 ' + p.slug">{{ p.title_cn || p.title || p.slug }} ↗</a></td>
+        <td><a class="lc-link" :href="lcProblemUrl(p.slug)" target="_blank" rel="noopener" :title="'在 LeetCode 打开 ' + p.slug">{{ p.title_cn || p.title || p.slug }} ↗</a><span v-if="p.paid_only" class="paid-badge" title="LeetCode 会员题">会员</span></td>
         <td :class="'diff-' + (p.difficulty ?? '')">{{ p.difficulty ?? '' }}</td>
-        <td><span :class="['pstatus', 'pstatus-' + statusOf(p).key]">{{ p.paid_only ? '🔒' : '' }} {{ statusOf(p).label }}</span></td>
+        <td><span :class="['pstatus', 'pstatus-' + statusOf(p).key]">{{ statusOf(p).label }}</span></td>
         <td class="actions">
           <button
             class="run-btn"

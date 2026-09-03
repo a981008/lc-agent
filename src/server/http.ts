@@ -223,6 +223,9 @@ export function buildApp(ctx: Ctx): express.Express {
     const difficulty = ((req.query.difficulty as string) || '').split(',').filter(Boolean);
     const status = (req.query.status as string) || undefined;
     const tag = ((req.query.tag as string) || '').trim() || undefined;
+    // 会员题筛选：paid=1 仅会员题 / paid=0 仅免费题 / 缺省全部
+    const paidRaw = (req.query.paid as string) || '';
+    const paid = paidRaw === '1' ? 1 : paidRaw === '0' ? 0 : undefined;
     const { items, total } = ctx.repo.listProblems({
       lifecycle: isAcceptedQuery ? undefined : lifecycle,
       ac_status: isAcceptedQuery ? 1 : undefined,
@@ -230,6 +233,7 @@ export function buildApp(ctx: Ctx): express.Express {
       difficulty: difficulty.length ? difficulty : undefined,
       status: ['todo', 'attempted', 'solved'].includes(status ?? '') ? (status as 'todo' | 'attempted' | 'solved') : undefined,
       tag,
+      paid,
       page,
       pageSize,
     });
