@@ -382,6 +382,6 @@ export const actions = {
   initToken, submitToken, logout, refreshStatus,
   doResume, doPause, doHalt, doTrigger, runProblem,
   saveStrategy, saveCookie, saveLlm, saveLimits, syncProblems,
-  loadProblems, loadSolutions, viewAttempts, viewSolution,
+  loadProblems, loadSolutions, viewAttempts, viewSolution, loadLanguages,
   switchTab, pagePrev, pageNext,
 };

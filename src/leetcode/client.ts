@@ -106,7 +106,11 @@ export class LeetCodeClient {
     const res = await fetch(`${BASE}/graphql/`, {
       method: 'POST',
       headers: this.headers(withAuth),
-      body: JSON.stringify({ query, operationName, variables }),
+      body: JSON.stringify(
+        operationName
+          ? { query, operationName, variables }
+          : { query, variables } // 匿名查询不传 operationName（cn 会校验并报 Unknown operation）
+      ),
       signal: AbortSignal.timeout(20_000),
     });
     if (res.status === 403) throw new LcChallengeError(`HTTP 403（可能触发风控/CAPTCHA）`);
@@ -256,6 +260,19 @@ export class LeetCodeClient {
       paidOnly: Boolean(q.isPaidOnly),
       difficulty: normalizeDifficulty(q.difficulty),
     };
+  }
+
+  /** LC 支持的全部提交语言（站点官方 languageList，动态获取） */
+  async listLanguages(): Promise<Array<{ slug: string }>> {
+    const data = await this.graphql<{ languageList: Array<{ name: string } | null> }>(
+      `{ languageList { id name } }`,
+      '',
+      {},
+      false
+    );
+    return (data.languageList ?? [])
+      .filter((l): l is { name: string } => Boolean(l?.name))
+      .map((l) => ({ slug: l.name }));
   }
 
   /* ---------------- 提交与判题（需凭据；docs/06 §1 提交环节） ---------------- */

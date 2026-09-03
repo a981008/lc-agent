@@ -162,6 +162,21 @@ export function buildApp(ctx: Ctx): express.Express {
     res.json({ ok: r !== 'noop', result: r, state: ctx.machine.state });
   });
 
+  // LC 支持的全部提交语言（动态获取，24h 缓存；供策略/参数页动态渲染）
+  app.get('/api/languages', async (_req, res) => {
+    const cached = ctx.repo.getMeta<{ at: number; langs: Array<{ slug: string }> } | null>('languages:cache', null);
+    if (cached && Date.now() - cached.at < 86_400_000) return res.json({ items: cached.langs, cached: true });
+    try {
+      const langs = await ctx.lc.listLanguages();
+      ctx.repo.setMeta('languages:cache', { at: Date.now(), langs });
+      return res.json({ items: langs, cached: false });
+    } catch (e) {
+      // LC 不可达时退回上一次成功列表（若有）
+      if (cached) return res.json({ items: cached.langs, cached: true, stale: true });
+      return res.status(502).json({ error: (e as Error).message });
+    }
+  });
+
   app.post('/api/control/trigger-once', async (req, res) => {
     const { slug } = (req.body ?? {}) as { slug?: string };
     const r = await ctx.worker.triggerOnce(slug);
