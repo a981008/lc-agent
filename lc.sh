@@ -134,15 +134,17 @@ do_start() {
   fi
 }
 
+# 停止服务；不再直接 exit（供 restart 串联调用）。返回 0=已停止或本来没在运行，1=端口被未知进程占用
 do_stop() {
   local pid
   if ! pid="$(running_pid)"; then
     if port_busy; then
       c_err "端口 $PORT 有进程在监听，但无 pid 文件记录；如需强停请手动处理（ss -tlnp | grep $PORT）"
+      return 1
     else
       c_info "未在运行"
     fi
-    exit 0
+    return 0
   fi
 
   c_info "停止 lc-agent（PID $pid，SIGTERM 优雅停机…）"
@@ -160,6 +162,7 @@ do_stop() {
   fi
   rm -f "$PID_FILE"
   c_ok "✅ 已停止"
+  return 0
 }
 
 do_status() {
@@ -182,8 +185,19 @@ do_status() {
 
 case "${1:-}" in
   start)   shift; do_start "$@" ;;
-  stop)    do_stop ;;
-  restart) do_stop; sleep 1; do_start "${2:-}" ;;
+  stop)    do_stop; exit $? ;;
+  restart)
+    shift
+    if ! do_stop; then exit 1; fi
+    # 等端口真正释放（最多 10s），避免 TIME_WAIT/句柄未关导致 EADDRINUSE
+    local_wait=0
+    while port_busy && [ "$local_wait" -lt 10 ]; do
+      sleep 1
+      local_wait=$((local_wait + 1))
+    done
+    do_start "$@"
+    exit $?
+    ;;
   status)  do_status ;;
   logs)    [ -f "$LOG_FILE" ] && tail -n 100 -f "$LOG_FILE" || c_info "暂无日志 $LOG_FILE" ;;
   *) echo "用法：./lc.sh {start|stop|restart|status|logs}"

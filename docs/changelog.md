@@ -64,6 +64,7 @@ source: v0.2 §7
 | v0.54 | **顶栏状态芯片即时刷新**：WS `state_change` 事件到达即用 `payload.to` 权威值更新芯片（不等 REST 往返），并附带当前题目 slug（IN_PROGRESS 时「当前题目」行即时更新）；5s REST 轮询保留为断线兜底。本地 CDP 全程实测 IN_PROGRESS ↔ IDLE 跟随正常；服务器若仍卡旧值请先升级到本版本（旧版前端无 WS 即时更新） |
 | v0.55 | Pipeline「当前题目」行显示**中文标题**（题库懒拉缓存，失败回退 slug）并**可点击跳转 LeetCode 题目页**（新标签页） |
 | v0.56 | **移除「🤖 AI 解题过程」面板**：Pipeline 只保留阶段灯 + 当前题目 + 实时日志；后端 generate 流式 delta 转发一并移除（`chat()` 流式能力保留），前端 store 清理 `aiProcess` 状态与样式 |
+| v0.57 | **修复 `./lc.sh restart`**：原实现 `do_stop` 内部 `exit` 导致 restart 只执行了停止、从不重新启动；改为 stop 返回值语义 + restart 串联启动 + 端口释放等待（最多 10s 防 EADDRINUSE）+ 参数全量透传（`restart --dry-run` 生效）；本地实测冷/热重启与幂等重启均正常 |
 
 > 文档同步（同日）：`README` 快速开始更新（跑这题/一题多解/每日一题/面板特性）；`docs/05` 补「每日一题自动完成」；`docs/07` 补多解法小节与 TLE 页签标注；`docs/09` 布局图与功能区重写（检索/页签/日志分页/AI 过程/主题/移动端）；`docs/12` 补「升级」清单（uiVersion 校验、沙盒镜像重建）；v0.46 补版本号占位说明。
 
