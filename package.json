@@ -16,7 +16,7 @@
     "status:daemon": "./lc.sh status",
     "logs:daemon": "./lc.sh logs",
     "web:dev": "npm --prefix web run dev",
-    "web:build": "npm --prefix web run build",
+    "web:build": "npm --prefix web install --no-audit --no-fund && npm --prefix web run build",
     "typecheck": "tsc --noEmit",
     "selftest": "tsx scripts/selftest.ts"
   },

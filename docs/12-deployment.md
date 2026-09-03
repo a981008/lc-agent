@@ -14,7 +14,7 @@
 ```bash
 git clone git@gitee.com:a981008/lc-agent.git && cd lc-agent   # 国内服务器走 gitee 快
 npm install --cache ./.npm-cache
-npm run web:build          # 若 web/dist 已随仓库携带可跳过
+npm run web:build          # 自动先装 web/ 依赖再构建；git pull 升级后重跑一次即可
 ```
 
 ## 2. `.env` 配置（核心）

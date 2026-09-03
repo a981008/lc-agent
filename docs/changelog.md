@@ -40,6 +40,7 @@ source: v0.2 §7
 | v0.30 | **题解列表自动刷新**：WS 事件驱动——归档完成（`archive done`）即时刷新 AC 题解列表；单题结束（IN_PROGRESS → IDLE/COOLING）即时刷新题目列表（尝试数与三态状态同步更新），无需手动切页签 |
 | v0.30 | **提交配额支持无限制**：「运行参数」新增「无限制」勾选（存 `dailySubmitLimit=0`）；后端配额判定统一走 `quotaReached()`（0 视为不限制），4 处判断同步；负数输入回退默认 10，自测 59/59 |
 | v0.32 | **翻译语言动态化 + 选择器美化**：新增 `GET /api/languages`——从 LC 官方 `languageList` 动态获取全部提交语言（26 种，24h 服务端缓存 + 失败时回退上次列表），前端不再写死；「运行参数」语言选择改为 chip 药丸网格（选中高亮、全部置顶绿显、悬停反馈）；修复匿名 GraphQL 查询带 operationName 被 cn 拒绝的问题 |
+| v0.33 | **构建健壮性**：`npm run web:build` 自动先安装 `web/` 依赖再构建——git pull 拉到新前端依赖（katex/highlight.js 等）后直接构建不再报 `Rollup failed to resolve import` |
 
 ---
 
