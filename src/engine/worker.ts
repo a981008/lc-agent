@@ -328,7 +328,7 @@ export class Worker {
 
   /* ============ 单题管线 ============ */
 
-  private emitStep(slug: string, stage: 'fetch' | 'generate' | 'local_test' | 'submit' | 'translate' | 'archive', status: 'start' | 'done' | 'fail', detail?: string | null): void {
+  private emitStep(slug: string, stage: 'fetch' | 'generate' | 'local_test' | 'submit' | 'translate' | 'archive', status: 'start' | 'done' | 'fail' | 'delta', detail?: string | null): void {
     emit('pipeline_step', { problem_id: slug, slug, stage, status, detail: detail ?? null });
   }
 
@@ -415,7 +415,24 @@ export class Worker {
     }
     try {
       if (!code) {
-        const gen = await this.ai.generateSolution(ctx);
+        // AI 解题过程实时外显：流式增量 → pipeline_step(delta) → 前端「AI 解题过程」面板
+        let deltaBuf = '';
+        let lastFlush = 0;
+        const flushDelta = (force = false) => {
+          if (!deltaBuf) return;
+          const now = Date.now();
+          if (!force && now - lastFlush < 400) return;
+          this.emitStep(slug, 'generate', 'delta', deltaBuf);
+          deltaBuf = '';
+          lastFlush = now;
+        };
+        const onDelta = (d: string) => {
+          deltaBuf += d;
+          if (deltaBuf.length >= 800) flushDelta(true);
+          else flushDelta();
+        };
+        const gen = await this.ai.generateSolution(ctx, onDelta);
+        flushDelta(true);
         llmCalls++;
         code = gen.code;
         gen.predicted.forEach((pred, i) => {
@@ -737,7 +754,19 @@ export class Worker {
       for (let tries = 0; tries < 2 && !passed; tries++) {
         try {
           if (tries === 0) {
-            const r = await this.ai.translateSolution({ ...this.describeCtx(q) }, acCode, lang, tpl.code);
+            let tBuf = '';
+            let tLast = 0;
+            const onDelta = (d: string) => {
+              tBuf += d;
+              const now = Date.now();
+              if (now - tLast >= 400 || tBuf.length >= 800) {
+                this.emitStep(slug, 'translate', 'delta', tBuf);
+                tBuf = '';
+                tLast = now;
+              }
+            };
+            const r = await this.ai.translateSolution({ ...this.describeCtx(q) }, acCode, lang, tpl.code, onDelta);
+            if (tBuf) this.emitStep(slug, 'translate', 'delta', tBuf);
             calls++;
             code = r.code;
           } else {

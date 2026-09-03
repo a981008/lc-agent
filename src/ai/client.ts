@@ -49,7 +49,7 @@ export class AiClient {
 
   async chat(
     messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
-    opts?: { maxTokens?: number; temperature?: number }
+    opts?: { maxTokens?: number; temperature?: number; onDelta?: (delta: string) => void }
   ): Promise<{ content: string; usage: { prompt_tokens?: number; completion_tokens?: number } | null }> {
     const cfg = this.getConfig();
     if (!cfg?.baseUrl || !cfg?.apiKey || !cfg?.model) throw new AiNotConfiguredError('LLM 未配置（baseUrl / apiKey / model）');
@@ -63,16 +63,17 @@ export class AiClient {
     let url: string;
     let headers: Record<string, string>;
     let body: string;
+    const stream = typeof opts?.onDelta === 'function';
     if (protocol === 'anthropic') {
       const system = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n\n');
       const rest = messages.filter((m) => m.role !== 'system').map((m) => ({ role: m.role, content: m.content }));
       url = this.endpoint(cfg.baseUrl, protocol);
       headers = { 'content-type': 'application/json', 'x-api-key': cfg.apiKey, 'anthropic-version': '2023-06-01' };
-      body = JSON.stringify({ model: cfg.model, max_tokens: maxTokens, temperature, system: system || undefined, messages: rest });
+      body = JSON.stringify({ model: cfg.model, max_tokens: maxTokens, temperature, stream, system: system || undefined, messages: rest });
     } else {
       url = this.endpoint(cfg.baseUrl, protocol);
       headers = { 'content-type': 'application/json', authorization: `Bearer ${cfg.apiKey}` };
-      body = JSON.stringify({ model: cfg.model, messages, temperature, max_tokens: maxTokens });
+      body = JSON.stringify({ model: cfg.model, messages, temperature, max_tokens: maxTokens, stream, stream_options: stream ? { include_usage: true } : undefined });
     }
 
     // 网络级瞬时抖动（ENOTFOUND/ECONNRESET/套接字中断…）自动重试 1 次；超时/中断不重试（420s 已经很宽）
@@ -93,6 +94,9 @@ export class AiClient {
       const cause = (lastErr as { cause?: { code?: string; message?: string } } | null)?.cause;
       const detail = cause?.code ?? cause?.message;
       throw new Error(`LLM 请求失败：${(lastErr as Error).message}${detail ? `（${detail}）` : ''}`);
+    }
+    if (stream) {
+      return this.consumeStream(res, protocol, body.length, opts!.onDelta!);
     }
     const text = await res.text();
     if (!res.ok) throw new Error(`LLM HTTP ${res.status}：${text.slice(0, 300)}`);
@@ -133,6 +137,68 @@ export class AiClient {
     return { content, usage };
   }
 
+  /** SSE 流式消费：解析 anthropic / openai 两种协议的增量事件，拼接全文并回传 usage */
+  private async consumeStream(
+    res: Response,
+    protocol: 'anthropic' | 'openai',
+    reqBytes: number,
+    onDelta: (delta: string) => void
+  ): Promise<{ content: string; usage: { prompt_tokens?: number; completion_tokens?: number } | null }> {
+    if (!res.ok || !res.body) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`LLM HTTP ${res.status}：${text.slice(0, 300)}`);
+    }
+    let full = '';
+    let usage: { prompt_tokens?: number; completion_tokens?: number } | null = null;
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    outer: while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let idx: number;
+      while ((idx = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, idx).trim();
+        buf = buf.slice(idx + 1);
+        if (!line.startsWith('data:')) continue;
+        const payload = line.slice(5).trim();
+        if (payload === '[DONE]') break outer;
+        let ev: {
+          type?: string;
+          delta?: { text?: string; content?: string; reasoning_content?: string };
+          choices?: Array<{ delta?: { content?: string; reasoning_content?: string } }>;
+          message?: { content?: string; reasoning_content?: string };
+          usage?: { prompt_tokens?: number; completion_tokens?: number; input_tokens?: number; output_tokens?: number };
+        };
+        try {
+          ev = JSON.parse(payload);
+        } catch {
+          continue; // 心跳/注释行
+        }
+        if (ev.usage) {
+          usage = { prompt_tokens: ev.usage.prompt_tokens ?? ev.usage.input_tokens, completion_tokens: ev.usage.completion_tokens ?? ev.usage.output_tokens };
+        }
+        let delta = '';
+        if (protocol === 'anthropic') {
+          if (ev.type === 'content_block_delta') delta = ev.delta?.text ?? '';
+          else if (ev.type === 'message_delta' && ev.usage) usage = { prompt_tokens: usage?.prompt_tokens, completion_tokens: ev.usage.completion_tokens ?? ev.usage.output_tokens };
+        } else {
+          delta = ev.choices?.[0]?.delta?.content ?? '';
+          // 思考增量：面板同样展示（用户要看解题过程，reasoning 正是过程本身）
+          if (!delta && ev.choices?.[0]?.delta?.reasoning_content) delta = ev.choices[0].delta.reasoning_content;
+        }
+        if (delta) {
+          full += delta;
+          try { onDelta(delta); } catch { /* 回调异常不影响生成 */ }
+        }
+      }
+    }
+    if (!full.trim()) throw new Error('LLM 流式返回空内容（可能输出预算被思考耗尽）');
+    this.budget.record(usage, reqBytes, full.length);
+    return { content: full, usage };
+  }
+
   /* ---------------- Prompt 构造 ---------------- */
 
   private problemSection(ctx: ProblemCtx): string {
@@ -155,7 +221,7 @@ export class AiClient {
   }
 
   /** 首次生成：返回 { code, predicted[] } */
-  async generateSolution(ctx: ProblemCtx): Promise<{ code: string; predicted: Array<string | null>; usage: unknown }> {
+  async generateSolution(ctx: ProblemCtx, onDelta?: (delta: string) => void): Promise<{ code: string; predicted: Array<string | null>; usage: unknown }> {
     const system = '你是精通数据结构与算法的竞赛选手。只输出一个严格的 JSON 对象，不要输出任何其他文本或解释。';
     const user = `${this.problemSection(ctx)}
 
@@ -164,10 +230,13 @@ export class AiClient {
 2. 预测每个示例的输出，序列化格式与 LeetCode 一致（如 \`[0,1]\`、\`3\`、\`"abc"\`、\`[3,9,20,null,null,15,7]\`）；无法确定填 null。
 
 输出 JSON：{"code": "<完整代码>", "predicted": ["<示例1输出>", ...]}`;
-    const { content, usage } = await this.chat([
-      { role: 'system', content: system },
-      { role: 'user', content: user },
-    ]);
+    const { content, usage } = await this.chat(
+      [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+      { onDelta }
+    );
     const parsed = extractJson(content) as { code?: string; predicted?: Array<string | null> };
     if (!parsed?.code?.trim()) throw new Error('AI 未返回有效代码');
     return {
@@ -255,7 +324,8 @@ ${code}
     ctx: ProblemCtx,
     jsCode: string,
     langSlug: string,
-    langTemplate: string
+    langTemplate: string,
+    onDelta?: (delta: string) => void
   ): Promise<{ code: string; usage: unknown }> {
     const user = `把下面已 AC 的 JavaScript 解法翻译为 ${langSlug}。
 
@@ -277,10 +347,13 @@ ${langTemplate}
 3. 代码中不要包含模板注释以外的任何解释。
 
 输出 JSON：{"code": "<完整代码>"}`;
-    const { content, usage } = await this.chat([
-      { role: 'system', content: '你是精通多语言的数据结构与算法竞赛选手。只输出一个严格的 JSON 对象，不要输出任何其他文本。' },
-      { role: 'user', content: user },
-    ]);
+    const { content, usage } = await this.chat(
+      [
+        { role: 'system', content: '你是精通多语言的数据结构与算法竞赛选手。只输出一个严格的 JSON 对象，不要输出任何其他文本。' },
+        { role: 'user', content: user },
+      ],
+      { onDelta }
+    );
     const parsed = extractJson(content) as { code?: string };
     if (!parsed?.code?.trim()) throw new Error(`翻译 ${langSlug} 未返回有效代码`);
     return { code: parsed.code, usage };

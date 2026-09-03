@@ -28,6 +28,8 @@ export const store = reactive({
   stages: { fetch: '', generate: '', local_test: '', submit: '', translate: '', archive: '' },
   pipelineSlug: null,
   currentProblem: '（当前无任务）',
+  aiProcess: '',   // AI 解题过程（流式累计）
+  aiProcessStage: '',  // 正在输出的阶段：generate/translate
   tab: 'problems',
   problems: { items: [], total: 0 },
   languages: [],
@@ -81,9 +83,21 @@ export function markStage(p) {
   if (store.pipelineSlug !== p.slug) {
     resetStages();
     store.pipelineSlug = p.slug;
+    store.aiProcess = '';
+    store.aiProcessStage = '';
   }
-  if (STAGE_KEYS.includes(p.stage)) store.stages[p.stage] = p.status;
+  if (STAGE_KEYS.includes(p.stage)) {
+    // delta 只是增量输出，不覆盖阶段状态灯
+    if (p.status !== 'delta') store.stages[p.stage] = p.status;
+  }
+  if (p.status === 'delta') {
+    store.aiProcess += (store.aiProcess ? '\n' : '') + p.detail;
+    store.aiProcessStage = p.stage;
+    return;
+  }
   if (p.status === 'start') store.currentProblem = `当前题目：${p.slug}`;
+  // 阶段推进时给过程区加分隔行
+  if (p.status === 'start' && store.aiProcess) store.aiProcess += `\n———— ${p.stage} ————`;
   if (p.detail) appendLog('debug', `[pipeline] ${p.slug}/${p.stage}: ${p.detail}`);
 }
 export function handleEvent(e) {
