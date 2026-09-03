@@ -87,7 +87,7 @@ function renderAcTabs(jsonText) {
   if (!langs.length) return '';
   const bar = langs
     .map((l, i) => `<button type="button" data-tab="${i}" class="ac-tab${i === 0 ? ' active' : ''}">${escapeHtml(l)}</button>`)
-    .join('') + '<button type="button" class="ac-copy" data-copy-ac>⧉ 复制全部</button>';
+    .join('') + '<button type="button" class="ac-copy" data-copy-ac>⧉ 复制代码</button>';
   const panes = langs
     .map((l, i) => {
       const code = codes[l] ?? '';
@@ -104,16 +104,11 @@ function renderAcTabs(jsonText) {
   return `<div class="ac-tabs"><div class="ac-tab-bar">${bar}</div>${panes}</div>`;
 }
 
-/** 复制 ac-tabs 容器内全部语言代码（带语言名注释头；http 环境回退 execCommand） */
+/** 复制 ac-tabs 当前激活页签的代码（纯代码原文；http 环境回退 execCommand） */
 export async function copyAcTabsCode(group) {
-  const panes = [...group.querySelectorAll('.ac-pane')];
-  if (!panes.length) return false;
-  const blocks = panes.map((p) => {
-    const lang = p.dataset.lang || 'Code';
-    const prefix = LANG_TO_COMMENT[lang] ?? '//';
-    return `${prefix} ===== ${lang} =====\n${p.textContent ?? ''}`;
-  });
-  const text = blocks.join('\n\n');
+  const pane = group.querySelector('.ac-pane.active') ?? group.querySelector('.ac-pane');
+  if (!pane) return false;
+  const text = pane.textContent ?? '';
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(text);

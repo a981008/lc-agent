@@ -316,7 +316,7 @@ async function testAcTabsEnhancements(): Promise<void> {
   const md = '```ac-tabs\n' + JSON.stringify({ JavaScript: 'var x = 1;', 'Python 3': 'x = 1\n' }) + '\n```';
   const html = renderMarkdown(md);
   check('代码语法高亮（hljs 标记）', html.includes('hljs-keyword') || html.includes('hljs'), 'hljs 类出现 ' + (html.match(/hljs/g) ?? []).length + ' 次');
-  check('「复制全部」按钮存在', html.includes('ac-copy') && html.includes('复制全部'), '按钮 OK');
+  check('「复制代码」按钮存在（仅当前页签语义）', html.includes('ac-copy') && html.includes('复制代码') && !html.includes('复制全部'), '按钮 OK');
   check('pane 带语言标识（复制排序用）', html.includes('data-lang="JavaScript"'), 'data-lang OK');
 }
 
