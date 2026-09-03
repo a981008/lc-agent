@@ -4,6 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>lc-agent 控制台</title>
+    <script>
+      // 防闪烁：CSS 加载前按 localStorage/系统偏好定主题
+      try {
+        var p = localStorage.getItem('lc-theme') || 'system';
+        var d = p === 'dark' || (p === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = d ? 'dark' : 'light';
+      } catch (e) { document.documentElement.dataset.theme = 'dark'; }
+    </script>
   </head>
   <body>
     <div id="app"></div>

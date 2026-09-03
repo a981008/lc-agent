@@ -1,6 +1,10 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { store } from '../store.js';
+import { getThemePref, setThemePref } from '../theme.js';
+
+const themePref = ref(getThemePref());
+function pickTheme(pref) { themePref.value = pref; setThemePref(pref); }
 
 const STATE_TEXT = {
   IDLE: '⚪ IDLE', RUNNING: '🟢 RUNNING', COOLING: '🟡 COOLING',
@@ -37,6 +41,11 @@ const cdText = computed(() => `${Math.ceil(cdLeftMs.value / 1000)}s`);
     <span class="chip muted">LLM 预算: {{ store.status.budget.usagePct }}%（{{ store.status.budget.calls }} 次）</span>
     <span v-if="cdLeftMs > 0" class="chip cooling">⏳ 冷却 {{ cdText }}</span>
     <span class="spacer"></span>
+    <span class="theme-switch" title="界面主题">
+      <button :class="{ active: themePref === 'light' }" @click="pickTheme('light')">☀️ 浅色</button>
+      <button :class="{ active: themePref === 'dark' }" @click="pickTheme('dark')">🌙 深色</button>
+      <button :class="{ active: themePref === 'system' }" @click="pickTheme('system')">💻 系统</button>
+    </span>
     <span :class="['chip', store.conn.muted ? 'muted' : '']">{{ store.conn.text }}</span>
   </header>
 </template>
