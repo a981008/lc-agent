@@ -4,6 +4,16 @@
 
 规格文档：[`spec.md`](spec.md)（总索引）+ [`docs/`](docs/)（模块详情）。当前实现覆盖 **M1 骨架 + M2 自愈闭环 + M3 调度风控** 的核心链路。
 
+## 仓库地址
+
+- **Gitee（国内推荐）**：<https://gitee.com/a981008/lc-agent>
+- **GitHub**：<https://github.com/a981008/lc-agent>
+
+```bash
+git clone git@gitee.com:a981008/lc-agent.git   # 国内服务器走 gitee 快
+# 或：git clone git@github.com:a981008/lc-agent.git
+```
+
 ## 快速开始
 
 ```bash
