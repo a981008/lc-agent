@@ -19,12 +19,7 @@ const CONFIG_TABS = [
     <div class="btn-row">
       <button class="primary" @click="actions.doResume">▶ 恢复</button>
       <button @click="actions.doPause">⏸ 暂停</button>
-      <button @click="actions.doTrigger">⚡ 跑单题</button>
       <button class="danger" @click="actions.doHalt">⏹ 终止</button>
-    </div>
-    <div class="field">
-      <label>指定 slug（跑单题可选）</label>
-      <input v-model="store.forms.manualSlug" placeholder="如 two-sum" />
     </div>
 
     <div class="tabs config-tabs">

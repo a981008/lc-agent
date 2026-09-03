@@ -179,7 +179,16 @@ tr:hover td { background: var(--hover-bg); }
 .diff-Medium { color: var(--yellow); }
 .diff-Hard { color: var(--red); }
 
-/* 语言选择 chip 网格（动态语言列表） */
+/* 列表检索工具条 */
+.filter-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.filter-bar .f-q { flex: 1 1 200px; min-width: 160px; width: auto; padding: 5px 10px; font-size: 12.5px; }
+.filter-bar select { width: auto; padding: 5px 8px; font-size: 12.5px; }
+.filter-bar .f-checks { display: inline-flex; gap: 10px; align-items: center; font-size: 12.5px; color: var(--muted); }
+.filter-bar .f-checks label { display: inline-flex; align-items: center; gap: 3px; cursor: pointer; }
+.filter-bar .f-checks input { accent-color: var(--accent); }
+.filter-bar .f-btn { padding: 4px 10px; font-size: 12.5px; }
+
+/* 语言选择 chip 网格（动态语言列表） *//* 语言选择 chip 网格（动态语言列表） */
 .lang-chip {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px;

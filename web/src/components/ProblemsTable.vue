@@ -2,6 +2,17 @@
 import { computed } from 'vue';
 import { store, actions, lcProblemUrl } from '../store.js';
 
+// 与策略表单一致的 LC 知识点选项（value 为站点 slug）
+const TAG_OPTIONS = [
+  ['array', '数组'], ['string', '字符串'], ['hash-table', '哈希表'], ['linked-list', '链表'],
+  ['two-pointers', '双指针'], ['sliding-window', '滑动窗口'], ['binary-search', '二分查找'],
+  ['sorting', '排序'], ['stack', '栈'], ['queue', '队列'], ['heap-priority-queue', '堆'],
+  ['tree', '树'], ['binary-tree', '二叉树'], ['graph', '图'], ['depth-first-search', 'DFS'],
+  ['breadth-first-search', 'BFS'], ['backtracking', '回溯'], ['dynamic-programming', '动态规划'],
+  ['greedy', '贪心'], ['math', '数学'], ['bit-manipulation', '位运算'], ['prefix-sum', '前缀和'],
+  ['recursion', '递归'], ['matrix', '矩阵'], ['design', '设计'], ['database', '数据库'],
+];
+
 const totalPages = computed(() => Math.max(1, Math.ceil((store.problems.total ?? 0) / store.pageSize)));
 
 // 三态刷题状态：已解答（AC）→ 尝试过（有尝试未 AC）→ 待完成
@@ -16,6 +27,25 @@ const currentSlug = computed(() => store.status?.currentSlug ?? null);
 </script>
 
 <template>
+  <div class="filter-bar">
+    <input class="f-q" v-model="store.pFilters.q" placeholder="搜题号 / 标题 / slug，回车检索" @keyup.enter="actions.applyPFilters" />
+    <select v-model="store.pFilters.status" @change="actions.applyPFilters">
+      <option value="">状态：全部</option>
+      <option value="todo">待完成</option>
+      <option value="attempted">尝试过</option>
+      <option value="solved">已解答</option>
+    </select>
+    <span class="f-checks">
+      <label v-for="d in [['Easy','易'],['Medium','中'],['Hard','难']]" :key="d[0]">
+        <input type="checkbox" :value="d[0]" v-model="store.pFilters.difficulty" @change="actions.applyPFilters" />{{ d[1] }}
+      </label>
+    </span>
+    <select v-model="store.pFilters.tag" @change="actions.applyPFilters">
+      <option value="">分类：全部</option>
+      <option v-for="t in TAG_OPTIONS" :key="t[0]" :value="t[0]">{{ t[1] }}</option>
+    </select>
+    <button class="f-btn" @click="store.pFilters = { q: '', status: '', difficulty: [], tag: '' }; actions.applyPFilters()">重置</button>
+  </div>
   <table>
     <thead>
       <tr><th>#</th><th>题号</th><th>题目</th><th>难度</th><th>状态</th><th>尝试</th><th>操作</th></tr>

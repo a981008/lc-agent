@@ -31,13 +31,14 @@ export const store = reactive({
   tab: 'problems',
   problems: { items: [], total: 0 },
   languages: [],
+  pFilters: { q: '', status: '', difficulty: [], tag: '' },
+  sFilters: { q: '', difficulty: [], tag: '' },
   page: 1,
   pageSize: 20,
   solutions: [],
   modal: { open: false, kind: 'solution', html: '', text: '' },
   cookieResult: '',
   forms: {
-    manualSlug: '',
     mode: 'sequential',
     difficulty: [],
     tag: '',
@@ -238,15 +239,6 @@ export async function runProblem(slug) {
   }
 }
 
-export async function doTrigger() {
-  const slug = store.forms.manualSlug.trim();
-  try {
-    await api('/control/trigger-once', { method: 'POST', body: JSON.stringify(slug ? { slug } : {}) });
-    appendLog('info', `跑单题已触发${slug ? `（${slug}）` : ''}`);
-    refreshStatus();
-  } catch (e) { if (!e.unauthorized) appendLog('error', `触发失败：${e.message}`); }
-}
-
 /* ---------------- 策略 / 凭据 / 配置 ---------------- */
 
 /** 从整个 Cookie 请求头中解析需要的两项 */
@@ -327,7 +319,13 @@ export async function syncProblems() {
 
 export async function loadProblems() {
   try {
-    const r = await api(`/problems?page=${store.page}&pageSize=${store.pageSize}`);
+    const f = store.pFilters;
+    const qs = new URLSearchParams();
+    if (f.q?.trim()) qs.set('q', f.q.trim());
+    if (f.status) qs.set('status', f.status);
+    if (f.difficulty?.length) qs.set('difficulty', f.difficulty.join(','));
+    if (f.tag) qs.set('tag', f.tag);
+    const r = await api(`/problems?page=${store.page}&pageSize=${store.pageSize}&${qs}`);
     // 数据变少（如重新同步）后当前页可能越界：回退到最后一页
     const maxPage = Math.max(1, Math.ceil(r.total / store.pageSize));
     if (store.page > maxPage) {
@@ -348,7 +346,12 @@ export async function loadLanguages() {
 
 export async function loadSolutions() {
   try {
-    const r = await api('/solutions');
+    const f = store.sFilters;
+    const qs = new URLSearchParams();
+    if (f.q?.trim()) qs.set('q', f.q.trim());
+    if (f.difficulty?.length) qs.set('difficulty', f.difficulty.join(','));
+    if (f.tag) qs.set('tag', f.tag);
+    const r = await api(`/solutions?${qs}`);
     store.solutions = r.items;
   } catch (e) { if (!e.unauthorized) appendLog('error', `题解加载失败：${e.message}`); }
 }
@@ -374,6 +377,17 @@ export function switchTab(tab) {
   if (tab === 'solutions') loadSolutions();
 }
 
+/** 应用题目列表检索（重置到第 1 页）；清空条件 = 全部 */
+export function applyPFilters() {
+  store.page = 1;
+  loadProblems();
+}
+
+/** 应用题解列表检索 */
+export function applySFilters() {
+  loadSolutions();
+}
+
 export function setPageSize(n) {
   const size = [20, 50, 100].includes(Number(n)) ? Number(n) : 20;
   if (store.pageSize === size) return;
@@ -389,8 +403,8 @@ export function pageNext() { store.page++; loadProblems(); }
 export const actions = {
   setConfigTab, setPageSize,
   initToken, submitToken, logout, refreshStatus,
-  doResume, doPause, doHalt, doTrigger, runProblem,
+  doResume, doPause, doHalt, runProblem,
   saveStrategy, saveCookie, saveLlm, saveLimits, syncProblems,
-  loadProblems, loadSolutions, viewAttempts, viewSolution, loadLanguages,
+  loadProblems, loadSolutions, viewAttempts, viewSolution, loadLanguages, applyPFilters, applySFilters,
   switchTab, pagePrev, pageNext,
 };

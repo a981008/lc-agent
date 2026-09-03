@@ -218,9 +218,18 @@ export function buildApp(ctx: Ctx): express.Express {
     const pageSize = Math.min(Math.max(Number(req.query.pageSize) || 50, 1), 200);
     // lifecycle=accepted 是别名：按 ac_status=1 全库过滤（避免只在当前页内过滤）
     const isAcceptedQuery = lifecycle === 'accepted';
+    // 检索：q 关键词 / difficulty 多选 / status 三态 / tag 知识点
+    const q = ((req.query.q as string) || '').trim() || undefined;
+    const difficulty = ((req.query.difficulty as string) || '').split(',').filter(Boolean);
+    const status = (req.query.status as string) || undefined;
+    const tag = ((req.query.tag as string) || '').trim() || undefined;
     const { items, total } = ctx.repo.listProblems({
       lifecycle: isAcceptedQuery ? undefined : lifecycle,
       ac_status: isAcceptedQuery ? 1 : undefined,
+      q,
+      difficulty: difficulty.length ? difficulty : undefined,
+      status: ['todo', 'attempted', 'solved'].includes(status ?? '') ? (status as 'todo' | 'attempted' | 'solved') : undefined,
+      tag,
       page,
       pageSize,
     });
@@ -233,8 +242,17 @@ export function buildApp(ctx: Ctx): express.Express {
     res.json({ items: ctx.repo.listAttempts(p.problem_id) });
   });
 
-  app.get('/api/solutions', (_req, res) => {
-    res.json({ items: ctx.repo.listSolutions() });
+  app.get('/api/solutions', (req, res) => {
+    const q = ((req.query.q as string) || '').trim() || undefined;
+    const difficulty = ((req.query.difficulty as string) || '').split(',').filter(Boolean);
+    const tag = ((req.query.tag as string) || '').trim() || undefined;
+    res.json({
+      items: ctx.repo.listSolutions(500, {
+        q,
+        difficulty: difficulty.length ? difficulty : undefined,
+        tag,
+      }),
+    });
   });
 
   app.get('/api/solutions/:problemId', (req, res) => {

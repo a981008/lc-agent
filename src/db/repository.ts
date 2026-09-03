@@ -162,7 +162,16 @@ export class Repository {
     return this.db.prepare('SELECT * FROM problem_records WHERE slug = ?').get(slug) as ProblemRow | undefined;
   }
 
-  listProblems(opts: { lifecycle?: string; ac_status?: number; page?: number; pageSize?: number }): { items: ProblemRow[]; total: number } {
+  listProblems(opts: {
+    lifecycle?: string;
+    ac_status?: number;
+    page?: number;
+    pageSize?: number;
+    q?: string; // 题号/标题关键词
+    difficulty?: string[]; // Easy/Medium/Hard
+    status?: 'todo' | 'attempted' | 'solved'; // 三态刷题状态
+    tag?: string; // LC 知识点 slug（JSON 数组 LIKE）
+  }): { items: ProblemRow[]; total: number } {
     const pageSize = Math.min(opts.pageSize ?? 50, 200);
     const page = Math.max(opts.page ?? 1, 1);
     const conds: string[] = [];
@@ -174,6 +183,22 @@ export class Repository {
     if (opts.ac_status !== undefined) {
       conds.push('ac_status = ?');
       params.push(opts.ac_status);
+    }
+    if (opts.q) {
+      conds.push(`(slug LIKE ? OR title LIKE ? OR title_cn LIKE ? OR frontend_question_id = ?)`);
+      const kw = `%${opts.q}%`;
+      params.push(kw, kw, kw, opts.q);
+    }
+    if (opts.difficulty?.length) {
+      conds.push(`difficulty IN (${opts.difficulty.map(() => '?').join(',')})`);
+      params.push(...opts.difficulty);
+    }
+    if (opts.status === 'solved') conds.push('ac_status = 1');
+    else if (opts.status === 'attempted') conds.push('ac_status = 0 AND attempts_count > 0');
+    else if (opts.status === 'todo') conds.push('ac_status = 0 AND COALESCE(attempts_count, 0) = 0');
+    if (opts.tag) {
+      conds.push(`tags LIKE ?`);
+      params.push(`%"${opts.tag}"%`);
     }
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
     const total = (this.db.prepare(`SELECT COUNT(*) AS c FROM problem_records ${where}`).get(...params) as { c: number }).c;
@@ -353,14 +378,34 @@ export class Repository {
     return this.db.prepare('SELECT id, markdown, codes, runtime_ms, runtime_percentile, memory_percentile, git_commit FROM solutions WHERE problem_id = ?').get(problemId) as never;
   }
 
-  listSolutions(limit = 100): Array<{ id: number; problem_id: string; slug: string; title: string | null; difficulty: string | null; created_at: number }> {
+  listSolutions(
+    limit = 100,
+    filter: { q?: string; difficulty?: string[]; tag?: string } = {}
+  ): Array<{ id: number; problem_id: string; slug: string; title: string | null; difficulty: string | null; created_at: number }> {
+    const conds: string[] = [];
+    const params: unknown[] = [];
+    if (filter.q) {
+      conds.push(`(s.problem_id = ? OR p.slug LIKE ? OR p.title LIKE ? OR p.title_cn LIKE ?)`);
+      const kw = `%${filter.q}%`;
+      params.push(filter.q, kw, kw, kw);
+    }
+    if (filter.difficulty?.length) {
+      conds.push(`p.difficulty IN (${filter.difficulty.map(() => '?').join(',')})`);
+      params.push(...filter.difficulty);
+    }
+    if (filter.tag) {
+      conds.push(`p.tags LIKE ?`);
+      params.push(`%"${filter.tag}"%`);
+    }
+    const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
     return this.db
       .prepare(
         `SELECT s.id, s.problem_id, p.slug, COALESCE(p.title_cn, p.title) AS title, p.difficulty, s.created_at
          FROM solutions s JOIN problem_records p ON p.problem_id = s.problem_id
+         ${where}
          ORDER BY s.created_at DESC LIMIT ?`
       )
-      .all(limit) as never;
+      .all(...params, limit) as never;
   }
 
   close(): void {
