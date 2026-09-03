@@ -176,7 +176,13 @@ const app = buildApp(ctx);
 // 前端：标准 Vue 项目（web/），服务其构建产物 web/dist（构建方式见 README）
 const webDist = path.resolve('web/dist');
 if (fs.existsSync(path.join(webDist, 'index.html'))) {
-  app.use(express.static(webDist));
+  // 缓存策略：带内容哈希的 assets 永久缓存；入口 index.html 每次都回源校验（部署后强刷都不用）
+  app.use('/assets', express.static(path.join(webDist, 'assets'), { maxAge: '365d', immutable: true }));
+  app.use(express.static(webDist, { index: false, etag: true, lastModified: true, setHeaders: (h) => h.set('Cache-Control', 'no-cache') }));
+  app.get('/', (_req, res) => {
+    res.set('Cache-Control', 'no-cache');
+    res.sendFile(path.join(webDist, 'index.html'));
+  });
 } else {
   app.get('/', (_req, res) => {
     res.status(503).send('前端未构建：请执行 npm run web:build（或开发模式 npm run web:dev）');

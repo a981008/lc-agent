@@ -1,4 +1,6 @@
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 import express from 'express';
 import type { Repository } from '../db/repository.js';
 import type { Worker, StrategyConfig } from '../engine/worker.js';
@@ -40,6 +42,20 @@ export function buildApp(ctx: Ctx): express.Express {
 
   /* ---------- 状态 ---------- */
 
+  // 面板版本（docs/changelog.md 最新的 v0.x；部署后看一眼就知道前端是否已更新）
+  let uiVersionCache: string | null = null;
+  const uiVersion = (): string => {
+    if (uiVersionCache) return uiVersionCache;
+    try {
+      const md = fs.readFileSync(path.resolve('docs/changelog.md'), 'utf8');
+      const all = [...md.matchAll(/^\| (v[\d.]+) \|/gm)].map((m) => m[1]);
+      uiVersionCache = all[all.length - 1] ?? 'dev';
+    } catch {
+      uiVersionCache = 'dev';
+    }
+    return uiVersionCache;
+  };
+
   app.get('/api/status', (_req, res) => {
     const acct = ctx.repo.getAccount();
     const probe = acct.lastProbeStatus
@@ -49,6 +65,7 @@ export function buildApp(ctx: Ctx): express.Express {
     const counts = ctx.repo.counts();
     const cdRemain = ctx.machine.cooldownRemainingMs();
     res.json({
+      uiVersion: uiVersion(),
       state: ctx.machine.state,
       blockedReason: ctx.machine.blockedReason,
       currentSlug: ctx.machine.currentSlug,

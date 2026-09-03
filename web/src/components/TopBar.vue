@@ -39,6 +39,7 @@ const cdText = computed(() => `${Math.ceil(cdLeftMs.value / 1000)}s`);
     <span :class="['chip', store.status.cookie.status === 'Authenticated' ? '' : 'muted']">Cookie: {{ cookieText }}</span>
     <span class="chip muted">AC: {{ store.status.counts.accepted }}/{{ store.status.counts.total }}（跳过 {{ store.status.counts.skipped }}）</span>
     <span class="chip muted">LLM 预算: {{ store.status.budget.usagePct }}%（{{ store.status.budget.calls }} 次）</span>
+    <span class="chip" :title="'部署后若界面未更新，看这个版本号变化即知'">v{{ store.status.uiVersion ?? 'dev' }}</span>
     <span v-if="cdLeftMs > 0" class="chip cooling">⏳ 冷却 {{ cdText }}</span>
     <span class="spacer"></span>
     <span class="theme-switch" title="界面主题">
