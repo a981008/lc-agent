@@ -79,7 +79,10 @@ export class AiClient {
     try {
       res = await fetch(url, { method: 'POST', headers, body, signal: AbortSignal.timeout(420_000) });
     } catch (e) {
-      throw new Error(`LLM 请求失败：${(e as Error).message}`);
+      // fetch failed 本身没有信息量；展开 cause 链拿到真实原因（ENOTFOUND/ECONNREFUSED/ETIMEDOUT…）
+      const cause = (e as { cause?: { code?: string; message?: string } } | null)?.cause;
+      const detail = cause?.code ?? cause?.message;
+      throw new Error(`LLM 请求失败：${(e as Error).message}${detail ? `（${detail}）` : ''}`);
     }
     const text = await res.text();
     if (!res.ok) throw new Error(`LLM HTTP ${res.status}：${text.slice(0, 300)}`);
