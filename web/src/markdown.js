@@ -105,6 +105,28 @@ function renderAcTabs(jsonText) {
   return `<div class="ac-tabs"><div class="ac-tab-bar">${bar}</div>${panes}</div>`;
 }
 
+/** alt-tabs JSON → 多解法页签组：每个解法一个页签，pane 内为讲解 markdown（递归渲染，代码高亮） */
+function renderAltTabs(jsonText) {
+  let map;
+  try {
+    map = JSON.parse(jsonText);
+  } catch {
+    return `<pre><code>${escapeHtml(jsonText)}</code></pre>`;
+  }
+  const names = Object.keys(map);
+  if (!names.length) return '';
+  const bar = names
+    .map((n, i) => `<button type="button" data-tab="${i}" class="ac-tab${i === 0 ? ' active' : ''}">${escapeHtml(n)}</button>`)
+    .join('');
+  const panes = names
+    .map((n, i) => {
+      const inner = renderMarkdown(map[n] ?? '');
+      return `<div class="ac-pane alt-pane${i === 0 ? ' active' : ''}" data-pane="${i}" data-lang="${escapeHtml(n)}">${inner}</div>`;
+    })
+    .join('');
+  return `<div class="ac-tabs alt-tabs"><div class="ac-tab-bar">${bar}</div>${panes}</div>`;
+}
+
 /** 复制 ac-tabs 当前激活页签的代码（纯代码原文；http 环境回退 execCommand） */
 export async function copyAcTabsCode(group) {
   const pane = group.querySelector('.ac-pane.active') ?? group.querySelector('.ac-pane');
@@ -195,7 +217,9 @@ marked.use({
   extensions: mathExtensions,
   renderer: {
     code(token) {
-      if ((token.lang ?? '').trim() === 'ac-tabs') return renderAcTabs(token.text ?? '');
+      const lang = (token.lang ?? '').trim();
+      if (lang === 'ac-tabs') return renderAcTabs(token.text ?? '');
+      if (lang === 'alt-tabs') return renderAltTabs(token.text ?? '');
       return `<pre><code>${escapeHtml(token.text ?? '')}</code></pre>`;
     },
     html(token) {

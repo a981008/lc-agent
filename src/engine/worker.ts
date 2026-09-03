@@ -246,12 +246,18 @@ export class Worker {
     const strategy: StrategyConfig = manualSlug
       ? { ...base, mode: 'random', tag: undefined }
       : { ...base, mode: 'random' };
-    const pick = manualSlug
+    let pick = manualSlug
       ? this.repo.getProblemBySlug(manualSlug) ??
         (await this.fetchAndStoreProblem(manualSlug))
       : await this.pickProblem(strategy, true);
-    if (pick && (pick.paid_only || pick.ac_status)) {
-      return { started: false, reason: `${pick.slug} 已解答或为付费题，不可跑` };
+    if (pick?.paid_only) {
+      return { started: false, reason: `${pick.slug} 为付费题，不可跑` };
+    }
+    // 已解答的题允许手动重跑（重跑后新题解覆盖旧题解）；重跑前重置刷题态以便流水线正常推进
+    if (pick?.ac_status) {
+      log(`重跑已解答题：${pick.slug}（新题解将覆盖旧题解）`);
+      this.repo.updateProblemLifecycle(pick.slug, { lifecycle: 'queued', ac_status: 0, retry_after: null, skip_reason: null });
+      pick = { ...pick, ac_status: 0, lifecycle: 'queued' };
     }
     if (!pick) return { started: false, reason: '没有可运行的题目（题库未同步或策略过滤过严）' };
     if (this.quotaReached()) {

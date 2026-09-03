@@ -65,9 +65,9 @@ const currentSlug = computed(() => store.status?.currentSlug ?? null);
           <button
             class="run-btn"
             :disabled="!canRun || !!p.paid_only"
-            :title="p.paid_only ? '付费题不支持' : (!canRun ? '仅空闲/暂停时可触发' : '立即跑这一题（Trigger Once）')"
+            :title="p.paid_only ? '付费题不支持' : (!canRun ? '仅空闲/暂停时可触发' : (p.ac_status ? '重跑这道已解答的题（新题解将覆盖旧题解）' : '立即跑这一题（Trigger Once）'))"
             @click="actions.runProblem(p.slug)"
-          >{{ currentSlug === p.slug ? '⏳ 运行中' : '▶ 跑这题' }}</button>
+          >{{ currentSlug === p.slug ? '⏳ 运行中' : (p.ac_status ? '↻ 重跑' : '▶ 跑这题') }}</button>
           <button @click="actions.viewAttempts(p.slug)">尝试记录</button>
         </td>
       </tr>

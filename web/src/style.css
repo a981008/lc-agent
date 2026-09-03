@@ -171,7 +171,13 @@ button.ghost { background: transparent; color: var(--muted); }
 .pipeline span.fail { color: var(--red); border-color: var(--red); }
 
 
-/* 日志分页工具条 */
+/* 多解法页签 pane：div 容器（讲解 markdown + 代码块），与 ac-pane 共用切换机制 */
+.alt-pane { display: none; padding: 8px 10px; overflow-y: auto; max-height: 60vh; }
+.alt-pane.active { display: block; }
+.alt-pane pre { margin: 8px 0; }
+.alt-pane p { margin: 6px 0; }
+
+/* 日志分页工具条 *//* 日志分页工具条 */
 .log-wrap { display: flex; flex-direction: column; min-height: 0; }
 .log-pager { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
 .log-pager .f-btn { padding: 3px 10px; font-size: 12px; }
