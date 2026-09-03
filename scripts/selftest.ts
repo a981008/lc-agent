@@ -282,6 +282,25 @@ async function testCooldownConfig(): Promise<void> {
   check('禁用开关即时归零', ((cfg = { ...cfg, enabled: false }), machine.cooldownRemainingMs() === 0), '0ms');
 }
 
+/** 数学式：$…$ / $$…$$ 走 KaTeX，代码块内保持原样 */
+async function testMathRender(): Promise<void> {
+  console.log('\n[8] 数学式渲染');
+  // @ts-expect-error 前端 JS 模块无类型声明
+  const { renderMarkdown: md } = (await import('../web/src/markdown.js')) as { renderMarkdown: (md: string) => string };
+
+  const inline = md('复杂度为 $n^2$ 的算法');
+  check('行内 $n^2$ 渲染为 KaTeX', inline.includes('katex') && inline.includes('n'), inline.slice(0, 80));
+
+  const block = md('$$\n\\sum_{i=1}^n i = \\frac{n(n+1)}{2}\n$$');
+  check('块级 $$…$$ 渲染 display 模式', block.includes('math-block') && block.includes('katex-display'), block.slice(0, 80));
+
+  const code = md('```bash\necho $HOME cost $5\n```');
+  check('代码块内 $ 不触发数学渲染', !code.includes('katex') && code.includes('$HOME'), code.slice(0, 80));
+
+  const literal = md('价格是 $5 和 $10');
+  check('未配对的 $ 保持原文', !literal.includes('katex'), literal.slice(0, 80));
+}
+
 /** env 动态读取：.env 加载时序无关（回归：BIND 曾因模块快照失效） */
 async function testEnvGetters(): Promise<void> {
   console.log('\n[7] env 动态读取');
@@ -315,10 +334,10 @@ async function testLlm(): Promise<void> {
   const apiKey = process.env.SELFTEST_LLM_API_KEY;
   const model = process.env.SELFTEST_LLM_MODEL;
   if (!baseUrl || !apiKey || !model) {
-    console.log('\n[8] LLM 连通性：未设置 SELFTEST_LLM_* 环境变量，跳过');
+    console.log('\n[9] LLM 连通性：未设置 SELFTEST_LLM_* 环境变量，跳过');
     return;
   }
-  console.log('\n[8] LLM 连通性');
+  console.log('\n[9] LLM 连通性');
   const { AiClient } = await import('../src/ai/client.js');
   const { BudgetManager } = await import('../src/budget.js');
   const mem = new Map<string, unknown>();
@@ -361,6 +380,7 @@ async function main(): Promise<void> {
   await testCooldownConfig();
   await testLcLink();
   await testEnvGetters();
+  await testMathRender();
   await testLlm();
 
   console.log(`\n=== 结果：${pass} 通过 / ${fail} 失败 ===`);
