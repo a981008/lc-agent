@@ -5,7 +5,7 @@ import LogTerminal from './LogTerminal.vue';
 
 <template>
   <section class="panel panel-pipeline">
-    <h3>当前题目 Pipeline</h3>
+    <h3>Pipeline</h3>
     <div class="pipeline">
       <span :class="store.stages.fetch">抓取</span> →
       <span :class="store.stages.generate">AI 生成</span> →

@@ -123,6 +123,8 @@ export async function refreshStatus() {
   try {
     const s = await api('/status');
     store.status = s;
+    // 当前题目信息以服务端状态为准（刷新页面后不残留旧文案）
+    store.currentProblem = s.currentSlug ? `当前题目：${s.currentSlug}` : '（当前无任务）';
     if (!store._filled) {
       store._filled = true;
       store.forms.mode = s.strategy.mode;
