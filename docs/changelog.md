@@ -32,6 +32,7 @@ source: v0.2 §7
 | v0.22 | **LLM 网络错误可诊断**：`fetch failed` 展开底层 cause 链（`ENOTFOUND`/`ECONNREFUSED`/`ETIMEDOUT`…）写进日志与尝试记录，服务器上不再只有无信息量的笼统报错 |
 | v0.23 | **LLM 请求自动重试**：网络级瞬时抖动（ENOTFOUND/ECONNRESET/套接字中断）自动重试 1 次（间隔 2s）——单次抖动不再废掉整题的生成与本地预检；超时/中断不重试 |
 | v0.24 | **SELinux 服务器兼容**：沙盒卷挂载加 `z` 标签（`--selinux-enabled` 的主机上容器内读取挂载文件会 Permission denied，导致 `local_fail sandbox_error`「用例 0 失败但整体失败」；无 SELinux 的主机该选项被忽略，行为不变） |
+| v0.25 | **修复服务器沙盒全挂的根因**：沙盒工作目录由 `mkdtempSync` 创建（默认 0700），容器却固定 `--user 1000:1000`——宿主用户 uid ≠ 1000 的服务器上容器无法遍历目录，node 无症状崩溃（`2 用例，失败 0` 但整体失败）；改为容器身份跟随宿主运行者（动态 uid:gid）+ 工作目录显式 0755。本机 uid 恰为 1000 掩盖了此 bug |
 
 ---
 

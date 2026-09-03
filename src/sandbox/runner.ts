@@ -86,6 +86,8 @@ export class SandboxRunner {
     const wall = opts?.wallTimeoutMs ?? 10_000;
     const cpu = opts?.cpuSeconds ?? 4;
     const workdir = fs.mkdtempSync(path.join(env.dataDir, 'sandbox-tmp', 'run-'));
+    // mkdtempSync 默认 0700：容器内 uid 若非宿主用户则无法遍历目录（无症状崩溃、无结果输出）
+    fs.chmodSync(workdir, 0o755);
     const containerName = `lc-agent-sb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     try {
       for (const f of files) {
@@ -107,7 +109,7 @@ export class SandboxRunner {
         '--security-opt', 'no-new-privileges',
         '--ulimit', `cpu=${cpu}`,
         '--ulimit', `fsize=1000000`,
-        '--user', '1000:1000',
+        '--user', `${typeof process.getuid === 'function' ? process.getuid() : 1000}:${typeof process.getgid === 'function' ? process.getgid() : 1000}`,
         // z：让 Docker 按 SELinux 规则重挂卷标签；无 SELinux 的主机该选项被忽略，跨平台无害
         '-v', `${workdir}:/work:ro,z`,
         '-w', '/work',
