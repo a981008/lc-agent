@@ -34,6 +34,7 @@ source: v0.2 §7
 | v0.24 | **SELinux 服务器兼容**：沙盒卷挂载加 `z` 标签（`--selinux-enabled` 的主机上容器内读取挂载文件会 Permission denied，导致 `local_fail sandbox_error`「用例 0 失败但整体失败」；无 SELinux 的主机该选项被忽略，行为不变） |
 | v0.25 | **修复服务器沙盒全挂的根因**：沙盒工作目录由 `mkdtempSync` 创建（默认 0700），容器却固定 `--user 1000:1000`——宿主用户 uid ≠ 1000 的服务器上容器无法遍历目录，node 无症状崩溃（`2 用例，失败 0` 但整体失败）；改为容器身份跟随宿主运行者（动态 uid:gid）+ 工作目录显式 0755。本机 uid 恰为 1000 掩盖了此 bug |
 | v0.26 | **题库同步改为每晚 0 点**：重启不再全量同步题库——仅建库为空时立即同步、距上次同步 ≥24h 才延迟 1 分钟补同步；每晚本地 0 点定时自动同步；面板手动同步按钮保留；lastSyncAt 落库 |
+| v0.27 | **翻译语言全量支持**：`translateLangs` 支持 `['all']`——按题目实际提供的语言全量翻译提交（leetcode.cn 全 20 种：C/C++/Java/Python3/C#/JS/TS/Go/Kotlin/Swift/Rust/Ruby/PHP/Dart/Scala/Elixir/Erlang/Racket/仓颉）；显式列表按站点交集解析；修复 Go 的 slug（`go`→`golang`，旧配置自动归一化）；语言名标签补全；「运行参数」新增「全部」选项 |
 
 ---
 

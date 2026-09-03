@@ -121,7 +121,7 @@ export async function refreshStatus() {
       store.forms.cooldownMax = Math.round(s.limits.cooldown.maxMs / 1000);
       store.forms.dryRun = s.limits.dryRun;
       store.forms.quota = s.limits.dailySubmitLimit;
-      store.forms.translateLangs = [...(s.limits.translateLangs || [])];
+      store.forms.translateLangs = (s.limits.translateLangs || []).map((l) => (l === 'go' ? 'golang' : l));
     }
   } catch (e) {
     if (!e.unauthorized) console.error(e);

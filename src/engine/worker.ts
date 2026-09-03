@@ -91,6 +91,25 @@ interface LcDetail {
   codeSnippets: Array<{ lang: string; langSlug: string; code: string }>;
 }
 
+/** 解析翻译目标语言：'all' = 站点提供的全部语言（除主提交语言）；显式列表取交集；旧 'go' 归一化为 'golang' */
+export function resolveTranslateTargets(
+  translateLangs: string[],
+  q: { codeSnippets?: Array<{ langSlug: string }> },
+  submitLang: string
+): string[] {
+  const available = (q.codeSnippets ?? []).map((s) => s.langSlug).filter(Boolean);
+  const wanted = translateLangs
+    .map((l) => (l === 'go' ? 'golang' : l))
+    .filter((l) => l && l !== submitLang);
+  if (wanted.includes('all')) {
+    const seen = new Set<string>([submitLang]);
+    return available.filter((l) => (seen.has(l) ? false : (seen.add(l), true)));
+  }
+  const set = new Set<string>();
+  for (const l of wanted) if (available.includes(l)) set.add(l);
+  return available.filter((l) => set.has(l));
+}
+
 export class Worker {
   private archiver: Archiver;
   private dry = new DrySubmitter();
@@ -682,7 +701,7 @@ export class Worker {
   ): Promise<Record<string, string>> {
     const lim = this.limits();
     const codes: Record<string, string> = { [lim.submitLang]: acCode };
-    const langs = (lim.translateLangs ?? []).filter((l) => l && l !== lim.submitLang);
+    const langs = resolveTranslateTargets(lim.translateLangs ?? [], q, lim.submitLang);
     if (!langs.length) return codes;
 
     this.emitStep(slug, 'translate', 'start', langs.join(' / '));

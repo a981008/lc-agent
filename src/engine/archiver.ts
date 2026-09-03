@@ -25,12 +25,25 @@ export const LANG_LABELS: Record<string, string> = {
   python: 'Python',
   cpp: 'C++',
   java: 'Java',
-  go: 'Go',
+  c: 'C',
   csharp: 'C#',
+  golang: 'Go',
+  go: 'Go', // 旧配置遗留别名
   ruby: 'Ruby',
   swift: 'Swift',
   kotlin: 'Kotlin',
   rust: 'Rust',
+  php: 'PHP',
+  dart: 'Dart',
+  scala: 'Scala',
+  elixir: 'Elixir',
+  erlang: 'Erlang',
+  racket: 'Racket',
+  cangjie: '仓颉',
+  mysql: 'MySQL',
+  mssql: 'MS SQL Server',
+  oraclesql: 'Oracle SQL',
+  bash: 'Bash',
 };
 
 export function langLabel(langSlug: string): string {

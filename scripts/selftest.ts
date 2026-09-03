@@ -282,6 +282,22 @@ async function testCooldownConfig(): Promise<void> {
   check('禁用开关即时归零', ((cfg = { ...cfg, enabled: false }), machine.cooldownRemainingMs() === 0), '0ms');
 }
 
+/** 翻译语言解析：all 语义 / 显式交集 / 旧 go 归一化 */
+async function testTranslateTargets(): Promise<void> {
+  console.log('\n[9] 翻译语言解析');
+  const { resolveTranslateTargets } = await import('../src/engine/worker.js');
+  const q = { codeSnippets: [{ langSlug: 'javascript' }, { langSlug: 'python3' }, { langSlug: 'golang' }, { langSlug: 'cangjie' }] };
+
+  const all = resolveTranslateTargets(['all'], q, 'javascript');
+  check("'all' 解析为站点全部语言（除主语言）", JSON.stringify(all) === JSON.stringify(['python3', 'golang', 'cangjie']), JSON.stringify(all));
+
+  const picked = resolveTranslateTargets(['python3', 'rust', 'go'], q, 'javascript');
+  check('显式列表取交集 + 旧 go 归一化 golang', JSON.stringify(picked) === JSON.stringify(['python3', 'golang']), JSON.stringify(picked));
+
+  const withJs = resolveTranslateTargets(['javascript', 'python3'], q, 'javascript');
+  check('主提交语言被剔除', JSON.stringify(withJs) === JSON.stringify(['python3']), JSON.stringify(withJs));
+}
+
 /** 数学式：$…$ / $$…$$ 走 KaTeX，代码块内保持原样 */
 async function testMathRender(): Promise<void> {
   console.log('\n[8] 数学式渲染');
@@ -334,10 +350,10 @@ async function testLlm(): Promise<void> {
   const apiKey = process.env.SELFTEST_LLM_API_KEY;
   const model = process.env.SELFTEST_LLM_MODEL;
   if (!baseUrl || !apiKey || !model) {
-    console.log('\n[9] LLM 连通性：未设置 SELFTEST_LLM_* 环境变量，跳过');
+    console.log('\n[10] LLM 连通性：未设置 SELFTEST_LLM_* 环境变量，跳过');
     return;
   }
-  console.log('\n[9] LLM 连通性');
+  console.log('\n[10] LLM 连通性');
   const { AiClient } = await import('../src/ai/client.js');
   const { BudgetManager } = await import('../src/budget.js');
   const mem = new Map<string, unknown>();
@@ -381,6 +397,7 @@ async function main(): Promise<void> {
   await testLcLink();
   await testEnvGetters();
   await testMathRender();
+  await testTranslateTargets();
   await testLlm();
 
   console.log(`\n=== 结果：${pass} 通过 / ${fail} 失败 ===`);

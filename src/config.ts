@@ -120,6 +120,7 @@ export const LIMITS_DEFAULTS: LimitsConfig = {
   llmPerProblemCalls: 8,
   llmDailyTokenLimit: 2_000_000,
   submitLang: 'javascript',
+  // Go 的正确 slug 是 golang；全语言用 ['all']
   translateLangs: ['python3', 'cpp', 'java'],
   notifyWebhook: '',
   dryRun: false,
