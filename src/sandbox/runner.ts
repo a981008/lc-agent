@@ -108,7 +108,8 @@ export class SandboxRunner {
         '--ulimit', `cpu=${cpu}`,
         '--ulimit', `fsize=1000000`,
         '--user', '1000:1000',
-        '-v', `${workdir}:/work:ro`,
+        // z：让 Docker 按 SELinux 规则重挂卷标签；无 SELinux 的主机该选项被忽略，跨平台无害
+        '-v', `${workdir}:/work:ro,z`,
         '-w', '/work',
         this.image,
         'node', 'main.js',
