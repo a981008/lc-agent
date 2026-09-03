@@ -48,11 +48,10 @@ const currentSlug = computed(() => store.status?.currentSlug ?? null);
   </div>
   <table>
     <thead>
-      <tr><th>#</th><th>题号</th><th>题目</th><th>难度</th><th>状态</th><th>尝试</th><th>操作</th></tr>
+      <tr><th>题号</th><th>题目</th><th>难度</th><th>状态</th><th>尝试</th><th>操作</th></tr>
     </thead>
     <tbody>
       <tr v-for="p in store.problems.items" :key="p.slug" :class="{ 'row-running': currentSlug === p.slug }">
-        <td></td>
         <td>{{ p.slug }}</td>
         <td><a class="lc-link" :href="lcProblemUrl(p.slug)" target="_blank" rel="noopener" :title="'在 LeetCode 打开 ' + p.slug">{{ p.title_cn || p.title || p.slug }} ↗</a></td>
         <td :class="'diff-' + (p.difficulty ?? '')">{{ p.difficulty ?? '' }}</td>
