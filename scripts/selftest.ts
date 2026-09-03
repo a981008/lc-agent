@@ -298,6 +298,18 @@ async function testTranslateTargets(): Promise<void> {
   check('主提交语言被剔除', JSON.stringify(withJs) === JSON.stringify(['python3']), JSON.stringify(withJs));
 }
 
+/** ac-tabs 增强：语法高亮 + 复制全部按钮 */
+async function testAcTabsEnhancements(): Promise<void> {
+  console.log('\n[10] ac-tabs 高亮与复制');
+  // @ts-expect-error 前端 JS 模块无类型声明
+  const { renderMarkdown } = (await import('../web/src/markdown.js')) as { renderMarkdown: (md: string) => string };
+  const md = '```ac-tabs\n' + JSON.stringify({ JavaScript: 'var x = 1;', 'Python 3': 'x = 1\n' }) + '\n```';
+  const html = renderMarkdown(md);
+  check('代码语法高亮（hljs 标记）', html.includes('hljs-keyword') || html.includes('hljs'), 'hljs 类出现 ' + (html.match(/hljs/g) ?? []).length + ' 次');
+  check('「复制全部」按钮存在', html.includes('ac-copy') && html.includes('复制全部'), '按钮 OK');
+  check('pane 带语言标识（复制排序用）', html.includes('data-lang="JavaScript"'), 'data-lang OK');
+}
+
 /** 数学式：$…$ / $$…$$ 走 KaTeX，代码块内保持原样 */
 async function testMathRender(): Promise<void> {
   console.log('\n[8] 数学式渲染');
@@ -350,10 +362,10 @@ async function testLlm(): Promise<void> {
   const apiKey = process.env.SELFTEST_LLM_API_KEY;
   const model = process.env.SELFTEST_LLM_MODEL;
   if (!baseUrl || !apiKey || !model) {
-    console.log('\n[10] LLM 连通性：未设置 SELFTEST_LLM_* 环境变量，跳过');
+    console.log('\n[11] LLM 连通性：未设置 SELFTEST_LLM_* 环境变量，跳过');
     return;
   }
-  console.log('\n[10] LLM 连通性');
+  console.log('\n[11] LLM 连通性');
   const { AiClient } = await import('../src/ai/client.js');
   const { BudgetManager } = await import('../src/budget.js');
   const mem = new Map<string, unknown>();
@@ -398,6 +410,7 @@ async function main(): Promise<void> {
   await testEnvGetters();
   await testMathRender();
   await testTranslateTargets();
+  await testAcTabsEnhancements();
   await testLlm();
 
   console.log(`\n=== 结果：${pass} 通过 / ${fail} 失败 ===`);

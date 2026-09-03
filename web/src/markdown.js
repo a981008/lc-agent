@@ -6,6 +6,71 @@
  */
 import { marked } from 'marked';
 import katex from 'katex';
+import hljs from 'highlight.js/lib/core';
+import javascript from 'highlight.js/lib/languages/javascript';
+import typescript from 'highlight.js/lib/languages/typescript';
+import python from 'highlight.js/lib/languages/python';
+import cpp from 'highlight.js/lib/languages/cpp';
+import c from 'highlight.js/lib/languages/c';
+import java from 'highlight.js/lib/languages/java';
+import csharp from 'highlight.js/lib/languages/csharp';
+import go from 'highlight.js/lib/languages/go';
+import rust from 'highlight.js/lib/languages/rust';
+import ruby from 'highlight.js/lib/languages/ruby';
+import php from 'highlight.js/lib/languages/php';
+import dart from 'highlight.js/lib/languages/dart';
+import scala from 'highlight.js/lib/languages/scala';
+import kotlin from 'highlight.js/lib/languages/kotlin';
+import swift from 'highlight.js/lib/languages/swift';
+import elixir from 'highlight.js/lib/languages/elixir';
+import erlang from 'highlight.js/lib/languages/erlang';
+import lisp from 'highlight.js/lib/languages/lisp';
+import sql from 'highlight.js/lib/languages/sql';
+import bash from 'highlight.js/lib/languages/bash';
+
+hljs.registerLanguage('javascript', javascript);
+hljs.registerLanguage('typescript', typescript);
+hljs.registerLanguage('python', python);
+hljs.registerLanguage('cpp', cpp);
+hljs.registerLanguage('c', c);
+hljs.registerLanguage('java', java);
+hljs.registerLanguage('csharp', csharp);
+hljs.registerLanguage('go', go);
+hljs.registerLanguage('rust', rust);
+hljs.registerLanguage('ruby', ruby);
+hljs.registerLanguage('php', php);
+hljs.registerLanguage('dart', dart);
+hljs.registerLanguage('scala', scala);
+hljs.registerLanguage('kotlin', kotlin);
+hljs.registerLanguage('swift', swift);
+hljs.registerLanguage('elixir', elixir);
+hljs.registerLanguage('erlang', erlang);
+hljs.registerLanguage('lisp', lisp);
+hljs.registerLanguage('sql', sql);
+hljs.registerLanguage('bash', bash);
+
+/** LC langSlug → highlight.js 语言名（没有对应实现的保持原样） */
+const LANG_TO_HLJS = {
+  javascript: 'javascript', typescript: 'typescript', python3: 'python', python: 'python',
+  cpp: 'cpp', c: 'c', java: 'java', csharp: 'csharp', golang: 'go', go: 'go',
+  rust: 'rust', ruby: 'ruby', php: 'php', dart: 'dart', scala: 'scala',
+  kotlin: 'kotlin', swift: 'swift', elixir: 'elixir', erlang: 'erlang',
+  racket: 'lisp', mysql: 'sql', mssql: 'sql', oraclesql: 'sql', bash: 'bash',
+  // ac-tabs 块的键是语言显示名（archiver 以 langLabel 落盘），同步支持反查
+  JavaScript: 'javascript', TypeScript: 'typescript', 'Python 3': 'python', Python: 'python',
+  'C++': 'cpp', C: 'c', Java: 'java', 'C#': 'csharp', Go: 'go', Golang: 'go',
+  Rust: 'rust', Ruby: 'ruby', PHP: 'php', Dart: 'dart', Scala: 'scala',
+  Kotlin: 'kotlin', Swift: 'swift', Elixir: 'elixir', Erlang: 'erlang', Racket: 'lisp',
+  MySQL: 'sql', 'MS SQL Server': 'sql', Bash: 'bash',
+};
+
+/** LC langSlug/显示名 → 复制全部时用的注释前缀 */
+const LANG_TO_COMMENT = {
+  python3: '#', python: '#', ruby: '#', bash: '#', elixir: '#', 'Python 3': '#', Python: '#',
+  Ruby: '#', Bash: '#', Elixir: '#',
+  mysql: '--', mssql: '--', oraclesql: '--', MySQL: '--', 'MS SQL Server': '--',
+  racket: ';;', Racket: ';;',
+};
 
 const escapeHtml = (s) =>
   String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -22,11 +87,52 @@ function renderAcTabs(jsonText) {
   if (!langs.length) return '';
   const bar = langs
     .map((l, i) => `<button type="button" data-tab="${i}" class="ac-tab${i === 0 ? ' active' : ''}">${escapeHtml(l)}</button>`)
-    .join('');
+    .join('') + '<button type="button" class="ac-copy" data-copy-ac>⧉ 复制全部</button>';
   const panes = langs
-    .map((l, i) => `<pre class="ac-pane${i === 0 ? ' active' : ''}" data-pane="${i}"><code>${escapeHtml(codes[l] ?? '')}</code></pre>`)
+    .map((l, i) => {
+      const code = codes[l] ?? '';
+      const hl = LANG_TO_HLJS[l];
+      let body;
+      try {
+        body = hl ? hljs.highlight(code, { language: hl, ignoreIllegals: true }).value : escapeHtml(code);
+      } catch {
+        body = escapeHtml(code);
+      }
+      return `<pre class="ac-pane${i === 0 ? ' active' : ''}" data-pane="${i}" data-lang="${escapeHtml(l)}"><code class="hljs">${body}</code></pre>`;
+    })
     .join('');
   return `<div class="ac-tabs"><div class="ac-tab-bar">${bar}</div>${panes}</div>`;
+}
+
+/** 复制 ac-tabs 容器内全部语言代码（带语言名注释头；http 环境回退 execCommand） */
+export async function copyAcTabsCode(group) {
+  const panes = [...group.querySelectorAll('.ac-pane')];
+  if (!panes.length) return false;
+  const blocks = panes.map((p) => {
+    const lang = p.dataset.lang || 'Code';
+    const prefix = LANG_TO_COMMENT[lang] ?? '//';
+    return `${prefix} ===== ${lang} =====\n${p.textContent ?? ''}`;
+  });
+  const text = blocks.join('\n\n');
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch { /* http 环境回退 */ }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  } catch {
+    return false;
+  }
 }
 
 const safeUrl = (raw) => {

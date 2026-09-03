@@ -1,12 +1,23 @@
 <script setup>
 import { store } from '../store.js';
+import { copyAcTabsCode } from '../markdown.js';
 
 function close() {
   store.modal.open = false;
 }
 
 // 页签事件委托：v-html 内的按钮无法绑 Vue 事件，这里统一代理
-function onMdClick(e) {
+async function onMdClick(e) {
+  const copyBtn = e.target.closest('.ac-copy');
+  if (copyBtn) {
+    const group = copyBtn.closest('.ac-tabs');
+    if (!group) return;
+    const ok = await copyAcTabsCode(group);
+    const old = copyBtn.textContent;
+    copyBtn.textContent = ok ? '✓ 已复制' : '✗ 复制失败';
+    setTimeout(() => { copyBtn.textContent = old; }, 1500);
+    return;
+  }
   const btn = e.target.closest('.ac-tab');
   if (!btn) return;
   const group = btn.closest('.ac-tabs');

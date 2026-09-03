@@ -149,6 +149,8 @@ td.run-btn { background: #2563eb; border-color: #2563eb; color: #fff; }
 
 /* 多语言 AC 代码页签（```ac-tabs 渲染产物） */
 .ac-tabs { margin: 12px 0; }
+.ac-copy { margin-left: auto; background: #334155; border-color: #475569; color: #cbd5e1; }
+.ac-copy:hover { background: #475569; color: #fff; }
 .ac-tab-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: -1px; }
 .ac-tab { background: var(--panel); border: 1px solid var(--border); border-radius: 8px 8px 0 0; color: var(--muted); font-size: 12px; padding: 6px 14px; cursor: pointer; }
 .ac-tab.active { color: var(--accent); border-color: var(--accent); border-bottom-color: var(--panel); }
