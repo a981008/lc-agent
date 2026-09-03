@@ -93,7 +93,8 @@ export class Archiver {
     code: string,
     perf: ArchivePerf,
     attemptSummary: string,
-    extraCodes?: Record<string, string> // langSlug → code（含主语言 javascript）
+    extraCodes?: Record<string, string>, // langSlug → code（含主语言 javascript）
+    alternatives?: Array<{ approach: string; code: string }> // 已 AC 的补充解法（多解法小节）
   ): Promise<{ file: string; commit: string | null; pushed: boolean }> {
     let markdown: string;
     try {
@@ -129,7 +130,14 @@ export class Archiver {
       if (k !== 'JavaScript') ordered[k] = codes[k]!;
     }
     markdown = withLcLink(markdown, slug, `${ctx.frontendId}. ${ctx.title}`);
-    markdown = `${markdown.trimEnd()}\n\n## AC 代码\n\n${buildAcTabsBlock(ordered)}\n`;
+    let altSection = '';
+    if (alternatives?.length) {
+      altSection = '\n## 多解法\n\n> 以下解法均已提交 LeetCode 并 AC。\n\n';
+      alternatives.forEach((a, i) => {
+        altSection += `### 解法 ${i + 2}：${a.approach}\n\n\`\`\`javascript\n${a.code}\n\`\`\`\n\n`;
+      });
+    }
+    markdown = `${markdown.trimEnd()}${altSection}\n## AC 代码\n\n${buildAcTabsBlock(ordered)}\n`;
 
     const dir = path.join(env.dataDir, 'solutions');
     const file = path.join(dir, `${ctx.frontendId}_${slug}.md`);

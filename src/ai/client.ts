@@ -246,6 +246,75 @@ export class AiClient {
     };
   }
 
+  /** 解法规划：AI 自主判断该题有多少种值得呈现的主流解法（返回思路名列表，主解法之外的数量即补充目标） */
+  async planApproaches(ctx: ProblemCtx, acceptedCode: string): Promise<{ approaches: string[]; usage: unknown }> {
+    const user = `${this.problemSection(ctx)}
+
+已通过（AC）的当前解法：
+\`\`\`javascript
+${acceptedCode}
+\`\`\`
+
+任务：以算法竞赛视角判断——这道题还存在哪些**思路本质不同**且正确性可靠的主流解法？
+- 只列真正值得写进题解的（不同算法范式/数据结构），机械变体、纯常数优化不要列；
+- 简单题可能一个补充解法都没有（返回空数组）；经典题可能有 2-3 个；
+- 每项用一句话概括思路（≤25 字）。
+
+输出 JSON：{"approaches": ["<思路1>", "<思路2>", ...]}`;
+    const { content, usage } = await this.chat([
+      { role: 'system', content: '你是精通数据结构与算法的竞赛选手。只输出一个严格的 JSON 对象，不要输出任何其他文本。' },
+      { role: 'user', content: user },
+    ]);
+    const parsed = extractJson(content) as { approaches?: unknown };
+    const approaches = Array.isArray(parsed.approaches)
+      ? (parsed.approaches as unknown[]).filter((x): x is string => typeof x === 'string' && x.trim().length > 0).slice(0, 5)
+      : [];
+    return { approaches, usage };
+  }
+
+  /** 补充解法：参考已 AC 的主解法，产出一个「不同思路」的新解 + 预测输出（要求同签名、可独立运行） */
+  async generateAlternativeSolution(
+    ctx: ProblemCtx,
+    acceptedCode: string,
+    existingApproaches: string[],
+    onDelta?: (delta: string) => void
+  ): Promise<{ code: string; approach?: string; predicted: Array<string | null>; usage: unknown }> {
+    const system = '你是精通数据结构与算法的竞赛选手。只输出一个严格的 JSON 对象，不要输出任何其他文本或解释。';
+    const user = `${this.problemSection(ctx)}
+
+已通过（AC）的参考解法：
+\`\`\`javascript
+${acceptedCode}
+\`\`\`
+
+任务：给出一种**与以下已有思路全部明显不同**的解法（不同算法范式或不同数据结构，而非变量改名/写法微调）。
+
+已有思路（禁止重复）：
+${existingApproaches.map((a, i) => `${i + 1}. ${a}`).join('\n')}
+
+要求：
+1. 用 JavaScript（LeetCode 判题格式）：只定义函数本身，签名与函数模板一致；不 require / 不 console / 不读输入。
+2. 算法必须正确且能通过全部测试（不仅是示例），复杂度在题目约束内可接受。
+3. 预测每个示例的输出（与 LeetCode 序列化一致，如 \`[0,1]\`、\`3\`）；无法确定填 null。
+
+输出 JSON：{"approach": "<思路一句话，≤30字>", "code": "<完整代码>", "predicted": ["<示例1输出>", ...]}`;
+    const { content, usage } = await this.chat(
+      [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+      { onDelta }
+    );
+    const parsed = extractJson(content) as { code?: string; approach?: string; predicted?: Array<string | null> };
+    if (!parsed?.code?.trim()) throw new Error('AI 未返回有效代码');
+    return {
+      code: parsed.code,
+      approach: typeof parsed.approach === 'string' ? parsed.approach : undefined,
+      predicted: Array.isArray(parsed.predicted) ? parsed.predicted : [],
+      usage,
+    };
+  }
+
   /** 自愈：基于失败信息修复代码（opts.lang/langTemplate 用于翻译解法的语言内修复） */
   async debugSolution(
     ctx: ProblemCtx,

@@ -535,9 +535,14 @@ export class Worker {
       if (kind === 'AC') {
         this.repo.updateProblemLifecycle(slug, { lifecycle: 'accepted', ac_status: 1 });
         summaryParts.push(`提交 ${submitsUsed} 次通过`);
+        // 补充解法：AC 后尝试生成 N 个「不同思路」解法，逐个本地验证 + 真实提交，只保留 AC 的（失败静默丢弃）
+        const alternatives = await this.enrichAlternatives(q, ctx, slug, code, sampleCases, lim, { llmCalls, submitsUsed, debugRounds });
+        llmCalls += alternatives.llmUsed;
+        submitsUsed += alternatives.submitsUsed;
+        summaryParts.push(...alternatives.summaries);
         // 翻译为其他语言并提交（docs/06 §5）：全部真实提交、计入每日配额；失败不阻塞归档
         const codes = await this.translateAndSubmit(q, slug, code, llmCalls, summaryParts);
-        await this.archive(q, ctx, slug, code, verdict, summaryParts.join('；'), codes);
+        await this.archive(q, ctx, slug, code, verdict, summaryParts.join('；'), codes, alternatives.accepted);
         return;
       }
 
@@ -595,6 +600,112 @@ export class Worker {
   }
 
   /** 本地沙盒测试 + self-debug 循环（allowDebug=false 时仅复验一轮） */
+  /**
+   * AC 后补充解法：生成 N 个「不同思路」的 JS 解，逐个走 本地沙盒 → 真实提交，
+   * 只保留 AC 的（进题解「多解法」小节）。任何失败都静默跳过，不阻塞主链路。
+   * 返回实际消耗的 LLM 调用数 / 提交数与 AC 解法列表（思路+代码）。
+   */
+  private async enrichAlternatives(
+    q: LcDetail,
+    ctx: ProblemCtx,
+    slug: string,
+    acceptedCode: string,
+    sampleCases: Array<{ input: string[] }>,
+    lim: LimitsConfig,
+    counters: { llmCalls: number; submitsUsed: number; debugRounds: number }
+  ): Promise<{ accepted: Array<{ approach: string; code: string }>; llmUsed: number; submitsUsed: number; summaries: string[] }> {
+    const out = { accepted: [] as Array<{ approach: string; code: string }>, llmUsed: 0, submitsUsed: 0, summaries: [] as string[] };
+    if (lim.dryRun) return out; // dry-run 不做（占位解法无补充意义）
+    const tried = new Set<string>();
+    tried.add(this.normCode(acceptedCode));
+
+    // 解法数量由 AI 规划：它自主判断该题还值得几种「思路本质不同」的解法（简单题可为 0）
+    let plans: string[] = [];
+    try {
+      this.emitStep(slug, 'generate', 'start', 'AI 规划补充解法');
+      const plan = await this.ai.planApproaches(ctx, acceptedCode);
+      counters.llmCalls++; out.llmUsed++;
+      plans = plan.approaches;
+      this.emitStep(slug, 'generate', 'done', plans.length ? `AI 规划 ${plans.length} 种补充解法` : 'AI 认为无需补充解法');
+      if (plans.length) log(`AI 规划补充解法 ${plans.length} 种：${plans.join(' / ')}`);
+    } catch (e) {
+      counters.llmCalls++; out.llmUsed++;
+      log(`解法规划失败（不阻塞主链路）：${(e as Error).message}`, 'warn');
+      return out;
+    }
+
+    for (let i = 0; i < plans.length; i++) {
+      const approachHint = plans[i] ?? '另一种思路';
+      // 配额/预算守门：任一不足即停
+      if (this.quotaReached()) { log('补充解法：已达每日提交配额，停止', 'warn'); break; }
+      if (counters.llmCalls >= lim.llmPerProblemCalls) { log('补充解法：LLM 调用预算已用尽，停止', 'warn'); break; }
+      const existing = [`主解法（见已通过代码）`, ...(out.accepted.length ? out.accepted.map((a) => a.approach) : plans.slice(0, i))];
+      try {
+        this.emitStep(slug, 'generate', 'start', `补充解法 ${i + 1}/${plans.length}：${approachHint}`);
+        const gen = await this.ai.generateAlternativeSolution(ctx, acceptedCode, existing);
+        const approach = (gen.approach?.trim() || approachHint).slice(0, 60);
+        counters.llmCalls++; out.llmUsed++;
+        this.emitStep(slug, 'generate', 'done', `补充解法 ${i + 1}: ${approach}（${gen.code.length} 字符）`);
+        const key = this.normCode(gen.code);
+        if (tried.has(key)) { log(`补充解法 ${i + 1} 与已有解法相同，跳过`); continue; }
+        tried.add(key);
+        // 本地沙盒验证（单次，不 self-debug：失败直接丢）
+        const predicted: Array<string | null> = gen.predicted;
+        const cases = sampleCases.map((c, k) => ({ input: c.input, expected: predicted[k] ?? '' , truncated: false }));
+        const validCases = cases.filter((c) => c.expected !== '') as DriverCase[];
+        if (!validCases.length) { log(`补充解法 ${i + 1} 无预测输出，跳过本地验证`); }
+        const run = await this.executeSandbox(q.metaData, q.codeSnippets.find((c) => c.langSlug === lim.submitLang)?.code ?? '', gen.code, validCases.length ? validCases : this.repo.getTestCases(q.questionFrontendId).map((t) => ({ input: t.input.split('\n'), expected: t.expected, truncated: t.truncated === 1 })));
+        const failed = run.result?.cases.filter((c) => !c.pass) ?? [];
+        const localOk = run.ok && run.result !== null && failed.length === 0;
+        this.repo.addAttempt({
+          problem_id: q.questionFrontendId,
+          round: 100 + i,
+          kind: 'local',
+          code_snapshot: gen.code,
+          verdict: localOk ? 'local_pass_alt' : 'local_fail_alt',
+          error_digest: localOk ? null : String(failed[0]?.error ?? 'sandbox_error').slice(0, 200),
+        });
+        if (!localOk) { log(`补充解法 ${i + 1} 本地未过，丢弃`); continue; }
+        // 真实提交 LC
+        this.emitStep(slug, 'submit', 'start', `补充解法 ${i + 1} 提交`);
+        const sid = await this.lc.submit(slug, q.questionId, gen.code, lim.submitLang);
+        const v = await this.lc.awaitVerdict(sid);
+        out.submitsUsed++;
+        this.machine.anchorCooldown();
+        const kind = mapVerdict(v.statusCode, v.statusMsg);
+        this.repo.addAttempt({
+          problem_id: q.questionFrontendId,
+          round: 100 + i,
+          kind: 'submit',
+          lang: lim.submitLang,
+          code_snapshot: gen.code,
+          verdict: kind,
+          error_digest: kind === 'AC' ? null : `${kind}:${v.statusMsg ?? ''}`.slice(0, 200),
+          detail: { runtime: v.runtimeMs, memory: v.memoryKb, correct: v.totalCorrect, total: v.totalTestcases },
+        });
+        emit('attempt_result', { problem_id: q.questionFrontendId, slug, verdict: kind, runtime_ms: v.runtimeMs, memory_percentile: v.memoryPercentile });
+        if (kind === 'AC') {
+          out.accepted.push({ approach, code: gen.code });
+          out.summaries.push(`补充解法 ${out.accepted.length}（${approach}）AC`);
+          log(`补充解法 ${i + 1} AC：${approach}`);
+        } else {
+          log(`补充解法 ${i + 1} 提交结果 ${kind}，丢弃`);
+        }
+      } catch (e) {
+        if (e instanceof BudgetExceededError) { log('补充解法：LLM 预算耗尽，停止', 'warn'); break; }
+        log(`补充解法 ${i + 1} 失败（不阻塞主链路）：${(e as Error).message}`, 'warn');
+      }
+    }
+    return out;
+  }
+
+  /** 解法去重键：去注释/空白后把标识符折叠为占位符——「仅变量改名」的同思路代码会被识别为重复 */
+  private normCode(code: string): string {
+    const stripped = code.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+    const KW = new Set(['var', 'let', 'const', 'function', 'return', 'if', 'else', 'while', 'for', 'of', 'in', 'new', 'typeof']);
+    return stripped.replace(/[A-Za-z_$][\w$]*/g, (m) => (KW.has(m) ? m : '#')).replace(/\s+/g, '');
+  }
+
   private async localTestLoop(
     questionId: string,
     slug: string,
@@ -858,7 +969,8 @@ export class Worker {
     code: string,
     verdict: { runtimeMs: number | null; runtimePercentile: number | null; memoryPercentile: number | null },
     summary: string,
-    codes?: Record<string, string>
+    codes?: Record<string, string>,
+    alternatives?: Array<{ approach: string; code: string }>
   ): Promise<void> {
     try {
       this.emitStep(slug, 'archive', 'start');
@@ -866,7 +978,7 @@ export class Worker {
         runtimeMs: verdict.runtimeMs,
         runtimePercentile: verdict.runtimePercentile,
         memoryPercentile: verdict.memoryPercentile,
-      }, summary, codes);
+      }, summary, codes, alternatives);
       this.emitStep(slug, 'archive', 'done');
     } catch (e) {
       this.emitStep(slug, 'archive', 'fail', (e as Error).message);

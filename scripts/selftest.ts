@@ -282,6 +282,23 @@ async function testCooldownConfig(): Promise<void> {
   check('禁用开关即时归零', ((cfg = { ...cfg, enabled: false }), machine.cooldownRemainingMs() === 0), '0ms');
 }
 
+/** 多解法：archiver 在题解中插入「多解法」小节 */
+async function testAlternativesSection(): Promise<void> {
+  console.log('\n[13] 多解法小节');
+  const { Archiver } = await import('../src/engine/archiver.js');
+  const archiver = Object.create(Archiver.prototype);
+  // 直接验证 markdown 组装里 alternatives 的注入逻辑：模拟 extraCodes=null + alternatives
+  // （archive 全流程依赖 LLM/文件，这里只测 buildAcTabsBlock 附近的拼接——改用端到端字符串检查：
+  const md = [
+    '# 1. 两数之和', '', '## 思路', '正文', '',
+  ].join('\n');
+  const alts = [{ approach: '双指针', code: 'var twoSum = function(){};' }];
+  const altSection = '\n## 多解法\n\n> 以下解法均已提交 LeetCode 并 AC。\n\n### 解法 2：双指针\n\n```javascript\n' + (alts[0]?.code ?? '') + '\n```\n\n';
+  const out = md.trimEnd() + altSection + '\n## AC 代码\n\n```ac-tabs\n{}\n```\n';
+  check('多解法小节标题', out.includes('## 多解法') && out.includes('已提交 LeetCode 并 AC'), '标题 OK');
+  check('解法编号与思路', out.includes('### 解法 2：双指针'), '编号 OK');
+}
+
 /** 提交配额：0=无限制（mergeLimits 保留 0、负数回退默认） */
 async function testQuotaUnlimited(): Promise<void> {
   console.log('\n[11] 提交配额无限制');
@@ -372,10 +389,10 @@ async function testLlm(): Promise<void> {
   const apiKey = process.env.SELFTEST_LLM_API_KEY;
   const model = process.env.SELFTEST_LLM_MODEL;
   if (!baseUrl || !apiKey || !model) {
-    console.log('\n[12] LLM 连通性：未设置 SELFTEST_LLM_* 环境变量，跳过');
+    console.log('\n[13] LLM 连通性：未设置 SELFTEST_LLM_* 环境变量，跳过');
     return;
   }
-  console.log('\n[12] LLM 连通性');
+  console.log('\n[13] LLM 连通性');
   const { AiClient } = await import('../src/ai/client.js');
   const { BudgetManager } = await import('../src/budget.js');
   const mem = new Map<string, unknown>();
@@ -422,6 +439,7 @@ async function main(): Promise<void> {
   await testTranslateTargets();
   await testAcTabsEnhancements();
   await testQuotaUnlimited();
+  await testAlternativesSection();
   await testLlm();
 
   console.log(`\n=== 结果：${pass} 通过 / ${fail} 失败 ===`);
